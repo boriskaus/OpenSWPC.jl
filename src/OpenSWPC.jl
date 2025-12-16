@@ -3,10 +3,6 @@ module OpenSWPC
 using OpenSWPC_jll 
 import MPI
 
-include("openswpc_input.jl")
-using .OpenSWPCInput: OpenSWPCConfig, write_input!
-export OpenSWPCConfig, write_input!
-
 
 if isdefined(OpenSWPC_jll,:MPICH_jll)
     const mpiexec = OpenSWPC_jll.MPICH_jll.mpiexec()
@@ -34,52 +30,15 @@ else
     pathsep = ':'
 end
 
+# Setup configuration of a model run
+include("openswpc_input.jl")
+using .OpenSWPCInput: OpenSWPCConfig, write_input!
+export OpenSWPCConfig, write_input!
 
 
-"""
-	swpc_path() -> String
-
-Return the absolute path to the OpenSWPC `swpc_3d` executable provided by `OpenSWPC_jll`.
-"""
-swpc_path() = OpenSWPC_jll.swpc_3d()
-
-"""
-	swpc_cmd(np::Integer; input::AbstractString="input.dat", extra_args::Vector{String}=String[], mpiexec_cmd::Union{Nothing,AbstractString}=nothing, env::Dict{String,String}=Dict()) -> Cmd
-
-Build a `Cmd` that runs `swpc_3d` under MPI with `np` ranks using the text input file `input`.
-If `mpiexec_cmd` is not provided, it tries `MPI.mpiexec()` when `MPI.jl` is installed, then falls back to `ENV["MPIEXEC"]`, otherwise `mpiexec` on PATH.
-You can pass additional CLI arguments via `extra_args` and environment variables via `env`.
-"""
-function swpc_cmd(np::Integer; input::AbstractString="input.dat", extra_args::Vector{String}=String[], mpiexec_cmd::Union{Nothing,AbstractString}=nothing, env::Dict{String,String}=Dict{String,String}())
-	isfile(input) || error("Input file not found: $(input)")
-
-	# Resolve mpiexec command
-	if mpiexec_cmd === nothing
-		mpiexec_cmd = try
-			MPI.mpiexec()
-		catch
-			get(ENV, "MPIEXEC", something(Sys.which("mpiexec"), "mpiexec"))
-		end
-	end
-    key = OpenSWPC.OpenSWPC_jll.JLLWrappers.JLLWrappers.LIBPATH_env
-    merged = vcat(OpenSWPC.OpenSWPC_jll.LIBPATH[], MPI_LIBPATH[])
-    mpirun = addenv(mpiexec, key => join(merged, pathsep))
-  
-	exe = swpc_path().exec
-    cmd = `$(mpirun) -n $np $(OpenSWPC_jll.swpc_3d().exec)  -i $(input) $(extra_args...)`
-end
-
-"""
-	run_swpc(np::Integer; kwargs...) -> Base.Process
-
-Run `swpc_3d` under MPI with `np` ranks. Keyword args are passed through to `swpc_cmd`.
-Returns the process object after successful completion.
-"""
-function run_swpc(np::Integer; kwargs...)
-	cmd = swpc_cmd(np; kwargs...)
-	run(cmd)
-end
-
+# run the code 
+include("run.jl")   
 export swpc_path, swpc_cmd, run_swpc
+
 
 end # module OpenSWPC

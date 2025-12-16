@@ -1,7 +1,6 @@
 module OpenSWPC
 
 using OpenSWPC_jll 
-using NetCDF_jll
 import MPI
 
 include("openswpc_input.jl")
@@ -63,18 +62,11 @@ function swpc_cmd(np::Integer; input::AbstractString="input.dat", extra_args::Ve
 		end
 	end
     key = OpenSWPC.OpenSWPC_jll.JLLWrappers.JLLWrappers.LIBPATH_env
-    # Merge OpenSWPC, MPI, and NetCDF library paths so dyld finds dependencies
-    netcdf_lib = "/Users/kausb/.julia/artifacts/8b2c8bc12a13efbc55a3e6c0334604e4c367931d/lib"
-    merged = vcat(OpenSWPC.OpenSWPC_jll.LIBPATH[], MPI_LIBPATH[], NetCDF_jll.LIBPATH[], [netcdf_lib])
-    
+    merged = vcat(OpenSWPC.OpenSWPC_jll.LIBPATH[], MPI_LIBPATH[])
     mpirun = addenv(mpiexec, key => join(merged, pathsep))
   
 	exe = swpc_path().exec
-    @show exe mpiexec_cmd
-	#cmd = `$(mpiexec_cmd) -n $np $(exe) $input $(extra_args...)`
-    
     cmd = `$(mpirun) -n $np $(OpenSWPC_jll.swpc_3d().exec)  -i $(input) $(extra_args...)`
-
 end
 
 """
@@ -85,7 +77,6 @@ Returns the process object after successful completion.
 """
 function run_swpc(np::Integer; kwargs...)
 	cmd = swpc_cmd(np; kwargs...)
-    @show cmd
 	run(cmd)
 end
 

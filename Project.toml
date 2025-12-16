@@ -1,0 +1,9 @@
+name = "OpenSWPC"
+uuid = "8d4af537-8a72-42c0-afd5-633bf53a5533"
+authors = ["Boris Kaus <kaus@uni-mainz.de>"]
+version = "0.1.0"
+
+[deps]
+GeophysicalModelGenerator = "3700c31b-fa53-48a6-808a-ef22d5a84742"
+NetCDF = "30363a11-5582-574a-97bb-aa9a979735b9"
+OpenSWPC_jll = "97e963f0-2dee-5a96-a601-8cee97e19b5a"

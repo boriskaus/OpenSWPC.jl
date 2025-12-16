@@ -30,11 +30,25 @@ else
     pathsep = ':'
 end
 
+# Source file writer (sourceCF.dat)
+include("source_cf.jl")
+using .OpenSWPCSource: AbstractSource, SourceLLMWDC, SourceXYMWDC, write_sourceCF!, read_sourceCF
+export AbstractSource, SourceLLMWDC, SourceXYMWDC, write_sourceCF!, read_sourceCF
+
+# Station locations (station.ll)
+include("stations.jl")
+using .OpenSWPCStations: StationLL, write_stations_ll!
+export StationLL, write_stations_ll!
+
+# Layered homogeneous medium (lhm)
+include("lhm.jl")
+using .OpenSWPCLHM: Layer1D, LHMModel, write_lhm!, read_lhm
+export Layer1D, LHMModel, write_lhm!, read_lhm
+
 # Setup configuration of a model run
 include("openswpc_input.jl")
 using .OpenSWPCInput: OpenSWPCConfig, write_input!
 export OpenSWPCConfig, write_input!
-
 
 # run the code 
 include("run.jl")   

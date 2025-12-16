@@ -8,10 +8,13 @@ Return the absolute path to the OpenSWPC `swpc_3d` executable provided by `OpenS
 swpc_path() = OpenSWPC_jll.swpc_3d()
 
 """
-	cmd = swpc_cmd(np::Integer; input::AbstractString="input.dat", extra_args::Vector{String}=String[], mpiexec_cmd::Union{Nothing,AbstractString}=nothing, env::Dict{String,String}=Dict(),
-                        swpc_psv=false,
-                        swpc_sh= false,
-                        swpc_3d=true) 
+	cmd = swpc_cmd( np::Integer; 
+                    input::AbstractString="input.dat", 
+                    swpc_psv=false,
+                    swpc_sh= false,
+                    swpc_3d=true,
+                    extra_args::Vector{String}=String[], 
+                    mpiexec_cmd::Union{Nothing,AbstractString}=nothing)
 
 Build a `Cmd` that runs `swpc_3d` under MPI with `np` ranks using the text input file `input`.
 If `mpiexec_cmd` is not provided, it tries `MPI.mpiexec()` when `MPI.jl` is installed, then falls back to `ENV["MPIEXEC"]`, otherwise `mpiexec` on PATH.
@@ -19,12 +22,11 @@ You can pass additional CLI arguments via `extra_args` and environment variables
 """
 function swpc_cmd(np::Integer; 
                 input::AbstractString="input.dat", 
-                extra_args::Vector{String}=String[], 
-                mpiexec_cmd::Union{Nothing,AbstractString}=nothing, 
-                env::Dict{String,String}=Dict{String,String},
                 swpc_psv=false,
                 swpc_sh= false,
-                swpc_3d=true)
+                swpc_3d=true,
+                extra_args::Vector{String}=String[], 
+                mpiexec_cmd::Union{Nothing,AbstractString}=nothing)
 
 	isfile(input) || error("Input file not found: $(input)")
 
@@ -75,6 +77,7 @@ Optional keyword arguments
 
 """
 function run_swpc(np::Integer; kwargs...)
+    @show kwargs
 	cmd = swpc_cmd(np; kwargs...)
 	run(cmd)
 end

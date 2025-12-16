@@ -1,5 +1,8 @@
 module OpenSWPCInput
 
+# Import the abstract source type from the sibling module within the parent package
+using ..OpenSWPCSource: AbstractSource, write_sourceCF!
+
 export OpenSWPCConfig, write_input!
 
 mutable struct OpenSWPCConfig
@@ -73,6 +76,7 @@ mutable struct OpenSWPCConfig
     stftype::String
     fn_stf::String
     sdep_fit::String
+    source::Vector{<:AbstractSource}  # optional field to hold sources
 
     # Body force source mode
     bf_mode::Bool
@@ -161,6 +165,7 @@ function OpenSWPCConfig(; kwargs...)
         odir = "./out",
         ntdec_r = 50,
         strict_mode = false,
+        
         # Model/Grid Size and Area
         nproc_x = 2, nproc_y = 2,
         nx = 384, ny = 384, nz = 384, nt = 1000,
@@ -169,6 +174,7 @@ function OpenSWPCConfig(; kwargs...)
         xbeg = -96.0, ybeg = -96.0, zbeg = -10.0, tbeg = 0.0,
         clon = 139.7604, clat = 35.7182, phi = 0.0,
         fq_min = 0.02, fq_max = 2.00, fq_ref = 1.0,
+        
         # Snapshot Output
         snp_format = "netcdf",
         xy_ps_sw = false, xz_ps_sw = true, yz_ps_sw = false, fs_ps_sw = false, ob_ps_sw = true,
@@ -176,34 +182,47 @@ function OpenSWPCConfig(; kwargs...)
         xy_u_sw = false, xz_u_sw = true, yz_u_sw = false, fs_u_sw = false, ob_u_sw = true,
         z0_xy = 7.0, x0_yz = 0.0, y0_xz = 0.0,
         ntdec_s = 5, idec = 2, jdec = 2, kdec = 2,
+        
         # Waveform Output
         sw_wav_v = true, sw_wav_u = false, sw_wav_stress = false, sw_wav_strain = false,
         ntdec_w = 5, st_format = "xy", fn_stloc = "./example/stloc.xy",
         wav_format = "sac", ntdec_w_prg = 0,
+        
         # Earthquake Source
-        stf_format = "xym0ij", stftype = "kupper", fn_stf = "./example/source.dat", sdep_fit = "asis",
+        stf_format = "xym0ij", stftype = "kupper", fn_stf = "sourceCF.dat", sdep_fit = "asis",source=AbstractSource[],
+        
         # Body force mode
         bf_mode = false,
+        
         # Plane wave mode
         pw_mode = false, pw_ztop = 100.0, pw_zlen = 30.0, pw_ps = "p",
         pw_strike = 0.0, pw_dip = 0.0, pw_rake = 0.0,
+        
         # Absorbing BC
         abc_type = "pml", na = 20, stabilize_pml = false,
+        
         # Velocity model
         vmodel_type = "lhm", is_ocean = true, topo_flatten = false, munk_profile = true, earth_flattening = false,
+        
         # Uniform model
         vp0 = 5.0, vs0 = 3.0, rho0 = 2.7, qp0 = 200, qs0 = 200, topo0 = 0,
+        
         # GMT grid
         dir_grd = "/vmodel/ejivsm/", fn_grdlst = "./example/grd.lst", node_grd = 0,
+        
         # Layered homogeneous medium
         fn_lhm = "example/lhm.dat",
+        
         # Random medium
         dir_rmed = "./in/", fn_grdlst_rmed = "./example/grd.lst", rhomin = 1.0, fn_rmed0 = "dummy.ns",
+        
         # Checkpoint
         is_ckp = false, ckpdir = "./out/ckp", ckp_interval = 1000000, ckp_time = 1000000.0, ckp_seq = true,
+        
         # Green's function
         green_mode = false, green_stnm = "st01", green_cmp = "z", green_trise = 1.0,
         green_bforce = false, green_maxdist = 550.0, green_fmt = "llz", fn_glst = "example/green.lst",
+        
         # MISC
         stopwatch_mode = false, benchmark_mode = false,
         ipad = 0, jpad = 0, kpad = 0,
@@ -225,7 +244,7 @@ function OpenSWPCConfig(; kwargs...)
         cfg.ntdec_s, cfg.idec, cfg.jdec, cfg.kdec,
         cfg.sw_wav_v, cfg.sw_wav_u, cfg.sw_wav_stress, cfg.sw_wav_strain,
         cfg.ntdec_w, cfg.st_format, cfg.fn_stloc, cfg.wav_format, cfg.ntdec_w_prg,
-        cfg.stf_format, cfg.stftype, cfg.fn_stf, cfg.sdep_fit,
+        cfg.stf_format, cfg.stftype, cfg.fn_stf, cfg.sdep_fit, cfg.source,
         cfg.bf_mode,
         cfg.pw_mode, cfg.pw_ztop, cfg.pw_zlen, cfg.pw_ps, cfg.pw_strike, cfg.pw_dip, cfg.pw_rake,
         cfg.abc_type, cfg.na, cfg.stabilize_pml,
@@ -245,6 +264,7 @@ end
 Compact REPL printing that includes all parameters, grouped by section.
 """
 function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
+    n = (cfg.nx, cfg.ny, cfg.nz)
     sections = [
         ("Control             ", (
             :title, :odir, :ntdec_r, :strict_mode
@@ -274,9 +294,6 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
         ("Waveform Output     ", (
             :sw_wav_v, :sw_wav_u, :sw_wav_stress, :sw_wav_strain,
             :ntdec_w, :st_format, :fn_stloc, :wav_format, :ntdec_w_prg
-        )),
-        ("Earthquake Source   ", (
-            :stf_format, :stftype, :fn_stf, :sdep_fit
         )),
         ("Body Force Mode     ", (
             :bf_mode
@@ -312,6 +329,10 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
         ("MISC                ", (
             :stopwatch_mode, :benchmark_mode, :ipad, :jpad, :kpad
         )),
+        ("Earthquake Source   ", (
+            :stf_format, :stftype, :fn_stf, :sdep_fit
+        )),
+
     ]
 
     println(io, "OpenSWPCConfig:")
@@ -324,6 +345,13 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
         end
         println(io, "  ", section, ": ", join(items, ", "))
     end
+    print(io, "  Sources             : ")
+    for s in cfg.source
+        show(io, MIME"text/plain"(), s)
+        println(io)
+        print(io, "                        ")
+    end
+
 end
 
 function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
@@ -469,6 +497,11 @@ function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
         println(io, "  ipad             = $(cfg.ipad)                !! memory padding size for tuning")
         println(io, "  jpad             = $(cfg.jpad)                !! memory padding size for tuning")
         println(io, "  kpad             = $(cfg.kpad)                !! memory padding size for tuning")
+    end
+
+    # write sources
+    if !isempty(cfg.source)
+        write_sourceCF!(cfg.fn_stf, cfg.source)
     end
     return nothing
 end

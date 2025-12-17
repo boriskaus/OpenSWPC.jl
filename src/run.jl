@@ -82,3 +82,18 @@ function run_swpc(np::Integer; kwargs...)
 	run(cmd)
 end
 
+
+
+"""
+
+    run_swpc(cfg::OpenSWPCConfig; kwargs...)
+
+Run `swpc_3d`. Keyword args are passed through to `swpc_cmd`.
+Returns the process object after successful completion.
+"""
+function run_swpc(cfg::OpenSWPCConfig; kwargs...)
+    @show kwargs
+    np = cfg.nproc_x * cfg.nproc_y
+    write_input!(cfg, cfg.input_file)
+    run_swpc(np; input=cfg.input_file, kwargs...)
+end

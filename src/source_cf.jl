@@ -47,7 +47,7 @@ Compact REPL printing for `SourceLLMWDC`.
 Example: SourceLLMWDC(lon=14.1338, lat=40.8262, z=1.879 km, tbeg=0.1 s, trise=4 s, Mw=3.9, DC[strike=243.4°, dip=31.6°, rake=-73.9°])
 """
 function Base.show(io::IO, ::MIME"text/plain", s::SourceLLMWDC)
-    print(io, "SourceLLMWDC(")
+    print(io, "                         SourceLLMWDC(")
     print(io, "lon=", _num(s.lon), ", lat=", _num(s.lat), ", ")
     print(io, "z=", _num(s.z), " km, ")
     print(io, "tbeg=", _num(s.tbeg), " s, trise=", _num(s.trise), " s, ")
@@ -61,7 +61,7 @@ Compact REPL printing for `SourceXYMWDC`.
 Example: SourceXYMWDC(x=0.0 km, y=0.0 km, z=1.879 km, tbeg=0.0 s, trise=2.5 s, Mw=3.9, DC[strike=243.4°, dip=31.6°, rake=-73.9°])
 """
 function Base.show(io::IO, ::MIME"text/plain", s::SourceXYMWDC)
-    print(io, "SourceXYMWDC(")
+    print(io, "                         SourceXYMWDC(")
     print(io, "x=", _num(s.x), " km, y=", _num(s.y), " km, ")
     print(io, "z=", _num(s.z), " km, ")
     print(io, "tbeg=", _num(s.tbeg), " s, trise=", _num(s.trise), " s, ")

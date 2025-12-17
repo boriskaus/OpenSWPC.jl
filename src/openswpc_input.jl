@@ -3,7 +3,7 @@
 #using ..OpenSWPCSource: AbstractSource, write_sourceCF!
 #using ..OpenSWPC: AbstractVelocityModel, UniformVelocityModel
 
-export OpenSWPCConfig, write_input!
+export OpenSWPCConfig, write_input!, clean
 
 """
         OpenSWPCConfig
@@ -52,6 +52,7 @@ Usage:
 """
 mutable struct OpenSWPCConfig
     # Control
+    input_file::String
     title::String
     odir::String
     ntdec_r::Int
@@ -106,6 +107,7 @@ mutable struct OpenSWPCConfig
     kdec::Int
 
     # Waveform Output
+    stations::Vector{StationLL} 
     sw_wav_v::Bool
     sw_wav_u::Bool
     sw_wav_stress::Bool
@@ -207,6 +209,7 @@ Override any field by passing it as a keyword.
 function OpenSWPCConfig(; kwargs...)
     defaults = (
         # Control
+        input_file = "inputCF.inf",
         title = "swpc",
         odir = "./out",
         ntdec_r = 50,
@@ -230,8 +233,9 @@ function OpenSWPCConfig(; kwargs...)
         ntdec_s = 5, idec = 2, jdec = 2, kdec = 2,
         
         # Waveform Output
+        stations = StationLL[],
         sw_wav_v = true, sw_wav_u = false, sw_wav_stress = false, sw_wav_strain = false,
-        ntdec_w = 5, st_format = "xy", fn_stloc = "./example/stloc.xy",
+        ntdec_w = 5, st_format = "ll", fn_stloc = "stations.ll",
         wav_format = "sac", ntdec_w_prg = 0,
         
         # Earthquake Source
@@ -249,7 +253,7 @@ function OpenSWPCConfig(; kwargs...)
         
         # Velocity model
         vmodel = UniformVelocityModel(6.0, 3.5, 2.7; qp0=150, qs0=80, topo0=0.5),
-        vmodel_type = "lhm", is_ocean = true, topo_flatten = false, munk_profile = true, earth_flattening = false,
+        vmodel_type = "lhm", is_ocean = false, topo_flatten = false, munk_profile = false, earth_flattening = false,
         
         # Uniform model
         vp0 = 5.0, vs0 = 3.0, rho0 = 2.7, qp0 = 200, qs0 = 200, topo0 = 0,
@@ -297,7 +301,16 @@ function OpenSWPCConfig(; kwargs...)
         cfg = merge(cfg, (; vmodel_type))
     end
 
-    return OpenSWPCConfig(
+    if  eltype(cfg.source)==SourceLLMWDC
+        stf_format = "llmwdc"
+        cfg = merge(cfg, (; stf_format))
+    elseif eltype(cfg.source)==SourceXYMWDC
+        stf_format = "xymwdc"
+        cfg = merge(cfg, (; stf_format))
+    end
+
+
+    return OpenSWPCConfig(cfg.input_file,
         cfg.title, cfg.odir, cfg.ntdec_r, cfg.strict_mode,
         cfg.nproc_x, cfg.nproc_y, cfg.nx, cfg.ny, cfg.nz, cfg.nt,
         cfg.dx, cfg.dy, cfg.dz, cfg.dt, cfg.vcut,
@@ -309,6 +322,7 @@ function OpenSWPCConfig(; kwargs...)
         cfg.xy_u_sw, cfg.xz_u_sw, cfg.yz_u_sw, cfg.fs_u_sw, cfg.ob_u_sw,
         cfg.z0_xy, cfg.x0_yz, cfg.y0_xz,
         cfg.ntdec_s, cfg.idec, cfg.jdec, cfg.kdec,
+        cfg.stations,
         cfg.sw_wav_v, cfg.sw_wav_u, cfg.sw_wav_stress, cfg.sw_wav_strain,
         cfg.ntdec_w, cfg.st_format, cfg.fn_stloc, cfg.wav_format, cfg.ntdec_w_prg,
         cfg.stf_format, cfg.stftype, cfg.fn_stf, cfg.sdep_fit, cfg.source,
@@ -334,7 +348,7 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
     n = (cfg.nx, cfg.ny, cfg.nz)
     sections = [
         ("Control             ", (
-            :title, :odir, :ntdec_r, :strict_mode
+            :input_file, :title, :odir, :ntdec_r, :strict_mode
         )),
         ("Model/Grid Size/Area", (
             :nx, :ny, :nz,
@@ -358,10 +372,10 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
             :z0_xy, :x0_yz, :y0_xz,
             :ntdec_s, :idec, :jdec, :kdec
         )),
-        ("Waveform Output     ", (
-            :sw_wav_v, :sw_wav_u, :sw_wav_stress, :sw_wav_strain,
-            :ntdec_w, :st_format, :fn_stloc, :wav_format, :ntdec_w_prg
-        )),
+        #("Waveform Output     ", (
+        #    :sw_wav_v, :sw_wav_u, :sw_wav_stress, :sw_wav_strain,
+        #    :ntdec_w, :st_format, :fn_stloc, :wav_format, :ntdec_w_prg
+        #)),
         ("Body Force Mode     ", (
             :bf_mode
         )),
@@ -412,13 +426,23 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
         end
         println(io, "  ", section, ": ", join(items, ", "))
     end
+
+    # stations
+    print(io, "  Waveform Output     : fn_stloc=\"$(cfg.fn_stloc)\", wav_format=\"$(cfg.wav_format)\",ntdec_w_prg=$(cfg.ntdec_w_prg), sw_wav_v/u=($(cfg.sw_wav_v), $(cfg.sw_wav_u)), sw_wav_stress/strain=($(cfg.sw_wav_stress), $(cfg.sw_wav_strain))\n")
+      #Waveform Output     : sw_wav_v=true, sw_wav_u=false, sw_wav_stress=false, sw_wav_strain=false, ntdec_w=5, st_format="xy", fn_stloc="./example/stloc.xy", wav_format="sac", ntdec_w_prg=0
+
+    for s in cfg.stations
+        show(io, MIME"text/plain"(), s)
+        #print(io, "                        ")
+        println(io)
+    end
+    # EQ sources
     print(io, "  Earthquake Sources  : stf_format=\"$(cfg.stf_format)\", stftype=\"$(cfg.stftype)\", fn_stf=\"$(cfg.fn_stf)\", sdep_fit=\"$(cfg.sdep_fit)\", number of sources=$(length(cfg.source))\n")
     for s in cfg.source
         show(io, MIME"text/plain"(), s)
+        #print(io, "                        ")
         println(io)
-        print(io, "                        ")
     end
-    print(io, "\n")
 
     # velocity model
     println(io, "  Velocity Model      : vmodel_type=\"$(cfg.vmodel_type)\", is_ocean=$(cfg.is_ocean), topo_flatten=$(cfg.topo_flatten), munk_profile=$(cfg.munk_profile), earth_flattening=$(cfg.earth_flattening)")
@@ -591,6 +615,21 @@ function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
         write_lhm!(cfg.fn_lhm, cfg.vmodel)
     end
 
+    if !isempty(cfg.stations)
+        write_stations_ll!(cfg.fn_stloc, cfg.stations)
+    end
 
+
+    return nothing
+end
+
+
+
+function clean(cfg::OpenSWPCConfig)
+    rm(cfg.odir, recursive=true)
+    rm(cfg.input_file, force=true)
+    rm(cfg.fn_stf, force=true)
+    rm(cfg.fn_lhm, force=true)
+    rm(cfg.fn_stloc, force=true)   
     return nothing
 end

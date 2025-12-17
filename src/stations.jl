@@ -21,7 +21,7 @@ struct StationLL
 end
 
 function Base.show(io::IO, ::MIME"text/plain", s::StationLL)
-    print(io, "StationLL(")
+    print(io, "                         StationLL(")
     print(io, "stnm=", s.stnm, ", lon=", _num(s.lon), ", lat=", _num(s.lat), ", dep=", _num(s.dep), " km, zsw=", s.zsw)
     print(io, ")")
 end

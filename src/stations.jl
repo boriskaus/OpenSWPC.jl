@@ -1,11 +1,7 @@
-module OpenSWPCStations
-
 export StationLL, write_stations_ll!
 
 using Printf
 
-_qs(s::AbstractString) = "'" * String(s) * "'"
-_num(x::Real) = @sprintf("%g", x)
 
 """
     StationLL(lon, lat, dep, stnm, zsw)
@@ -68,4 +64,3 @@ function write_stations_ll!(path::AbstractString, stations)
     return nothing
 end
 
-end # module

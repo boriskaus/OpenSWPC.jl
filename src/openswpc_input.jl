@@ -1,10 +1,55 @@
-module OpenSWPCInput
 
 # Import the abstract source type from the sibling module within the parent package
-using ..OpenSWPCSource: AbstractSource, write_sourceCF!
+#using ..OpenSWPCSource: AbstractSource, write_sourceCF!
+#using ..OpenSWPC: AbstractVelocityModel, UniformVelocityModel
 
 export OpenSWPCConfig, write_input!
 
+"""
+        OpenSWPCConfig
+
+Top-level configuration for preparing an OpenSWPC input file (`input.dat`).
+Fields mirror the sections found in the SWPC example input, and can be
+overridden via the keyword constructor `OpenSWPCConfig(; kwargs...)`.
+
+Sections and notable fields:
+
+- Control: `title`, `odir`, `ntdec_r`, `strict_mode`.
+- Model/Grid Size/Area: 
+    - `nx`, `ny`, `nz` : number of grid cells 
+    - `dx`, `dy`, `dz`: spacing
+    - `nt`, `dt`: timestepping
+    domain extents `xbeg`, `ybeg`, `zbeg`, start time `tbeg`, map center
+    `clon`, `clat`, rotation `phi`, and Q-constant model freqs `fq_min/max/ref`.
+- Snapshot Output: `snp_format`, switches like `xy_ps_sw`, decimation
+    `ntdec_s`, and spatial decimations `idec/jdec/kdec`.
+- Waveform Output: `sw_wav_*` switches, `ntdec_w`, `st_format`, `fn_stloc`,
+    and `wav_format`.
+- Earthquake Source: `stf_format`, `stftype`, `fn_stf`, `sdep_fit`, and an
+    optional `source::Vector{AbstractSource}` with per-event specifications
+    (from the `OpenSWPCSource` module).
+- Body/Plane wave modes: `bf_mode`, `pw_mode` with plane-wave geometry
+    (`pw_ztop`, `pw_zlen`, `pw_ps`, `pw_strike/dip/rake`).
+- Absorbing BC: `abc_type`, `na`, `stabilize_pml`.
+- Velocity model: choose among `uniform`/`grd`/`lhm`/`lgm` via `vmodel_type` set 
+    `is_ocean`, `topo_flatten`, `munk_profile`, `earth_flattening`.
+
+    - Uniform: set when `vmodel=UniformVelocityModel(...)` is passed. See `UniformVelocityModel` for details.
+    - Layered homogeneous ('lhm' or `lgm`): `fn_lhm`.
+    - GMT grid: `dir_grd`, `fn_grdlst`, `node_grd`.
+    - Random medium: `dir_rmed`, `fn_grdlst_rmed`, `rhomin`, `fn_rmed0`.
+- Checkpoint/Restart: `is_ckp`, `ckpdir`, `ckp_interval`, `ckp_time`, `ckp_seq`.
+- Reciprocity Green's Function: `green_*` fields.
+- MISC: `stopwatch_mode`, `benchmark_mode`, `ipad/jpad/kpad`.
+
+Usage:
+
+- Start from defaults and override selectively:
+    `cfg = OpenSWPCConfig(nx=128, ny=128, nz=128, dt=0.01, title="test")`
+- Write an input file:
+    `write_input!(cfg, "input.dat")`
+- Pretty-print: showing `cfg` in the REPL lists all parameters by section.
+"""
 mutable struct OpenSWPCConfig
     # Control
     title::String
@@ -96,6 +141,7 @@ mutable struct OpenSWPCConfig
     stabilize_pml::Bool
 
     # Velocity model
+    vmodel::AbstractVelocityModel
     vmodel_type::String
     is_ocean::Bool
     topo_flatten::Bool
@@ -106,9 +152,9 @@ mutable struct OpenSWPCConfig
     vp0::Float64
     vs0::Float64
     rho0::Float64
-    qp0::Int
-    qs0::Int
-    topo0::Int
+    qp0::Float64
+    qs0::Float64
+    topo0::Float64
 
     # For GMT grid file input
     dir_grd::String
@@ -202,19 +248,20 @@ function OpenSWPCConfig(; kwargs...)
         abc_type = "pml", na = 20, stabilize_pml = false,
         
         # Velocity model
+        vmodel = UniformVelocityModel(6.0, 3.5, 2.7; qp0=150, qs0=80, topo0=0.5),
         vmodel_type = "lhm", is_ocean = true, topo_flatten = false, munk_profile = true, earth_flattening = false,
         
         # Uniform model
         vp0 = 5.0, vs0 = 3.0, rho0 = 2.7, qp0 = 200, qs0 = 200, topo0 = 0,
         
         # GMT grid
-        dir_grd = "/vmodel/ejivsm/", fn_grdlst = "./example/grd.lst", node_grd = 0,
+        dir_grd = "/vmodel/ejivsm/", fn_grdlst = "grd.lst", node_grd = 0,
         
         # Layered homogeneous medium
-        fn_lhm = "example/lhm.dat",
+        fn_lhm = "lhm.dat",
         
         # Random medium
-        dir_rmed = "./in/", fn_grdlst_rmed = "./example/grd.lst", rhomin = 1.0, fn_rmed0 = "dummy.ns",
+        dir_rmed = "./in/", fn_grdlst_rmed = "grd.lst", rhomin = 1.0, fn_rmed0 = "dummy.ns",
         
         # Checkpoint
         is_ckp = false, ckpdir = "./out/ckp", ckp_interval = 1000000, ckp_time = 1000000.0, ckp_seq = true,
@@ -230,6 +277,26 @@ function OpenSWPCConfig(; kwargs...)
 
     # Merge kwargs over defaults
     cfg = merge(NamedTuple(defaults), kwargs)
+    if isa(cfg.vmodel, UniformVelocityModel)
+        vm      = cfg.vmodel
+        vmodel_type = "uni"
+        vp0 = vm.vp0
+        vs0 = vm.vs0
+        rho0 = vm.rho0
+        qp0 = vm.qp0
+        qs0 = vm.qs0
+        topo0 = vm.topo0
+        cfg = merge(cfg, (;vmodel_type,vp0,vs0,rho0,qp0,qs0,topo0))
+    end
+
+    if isa(cfg.vmodel, LHMModel)
+        vmodel_type = cfg.vmodel_type
+        if vmodel_type != "lhm" && vmodel_type != "lgm"
+            vmodel_type = "lgm"
+        end
+        cfg = merge(cfg, (; vmodel_type))
+    end
+
     return OpenSWPCConfig(
         cfg.title, cfg.odir, cfg.ntdec_r, cfg.strict_mode,
         cfg.nproc_x, cfg.nproc_y, cfg.nx, cfg.ny, cfg.nz, cfg.nt,
@@ -248,7 +315,7 @@ function OpenSWPCConfig(; kwargs...)
         cfg.bf_mode,
         cfg.pw_mode, cfg.pw_ztop, cfg.pw_zlen, cfg.pw_ps, cfg.pw_strike, cfg.pw_dip, cfg.pw_rake,
         cfg.abc_type, cfg.na, cfg.stabilize_pml,
-        cfg.vmodel_type, cfg.is_ocean, cfg.topo_flatten, cfg.munk_profile, cfg.earth_flattening,
+        cfg.vmodel, cfg.vmodel_type, cfg.is_ocean, cfg.topo_flatten, cfg.munk_profile, cfg.earth_flattening,
         cfg.vp0, cfg.vs0, cfg.rho0, cfg.qp0, cfg.qs0, cfg.topo0,
         cfg.dir_grd, cfg.fn_grdlst, cfg.node_grd,
         cfg.fn_lhm,
@@ -304,18 +371,18 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
         ("Absorbing BCs       ", (
             :abc_type, :na, :stabilize_pml
         )),
-        ("Velocity Model      ", (
-            :vmodel_type, :is_ocean, :topo_flatten, :munk_profile, :earth_flattening
-        )),
-        ("Uniform Model       ", (
-            :vp0, :vs0, :rho0, :qp0, :qs0, :topo0
-        )),
+        #("Velocity Model      ", (
+        #    :vmodel_type, :is_ocean, :topo_flatten, :munk_profile, :earth_flattening
+        #)),
+        #("Uniform Model       ", (
+        #    :vp0, :vs0, :rho0, :qp0, :qs0, :topo0
+        #)),
         ("GMT Grid            ", (
             :dir_grd, :fn_grdlst, :node_grd
         )),
-        ("Layered Hom. Medium ", (
-            :fn_lhm
-        )),
+        #("Layered Hom. Medium ", (
+        #    :fn_lhm
+        #)),
         ("Random Medium       ", (
             :dir_rmed, :fn_grdlst_rmed, :rhomin, :fn_rmed0
         )),
@@ -329,9 +396,9 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
         ("MISC                ", (
             :stopwatch_mode, :benchmark_mode, :ipad, :jpad, :kpad
         )),
-        ("Earthquake Source   ", (
-            :stf_format, :stftype, :fn_stf, :sdep_fit
-        )),
+        #("Earthquake Source   ", (
+        #    :stf_format, :stftype, :fn_stf, :sdep_fit
+        #)),
 
     ]
 
@@ -345,12 +412,23 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
         end
         println(io, "  ", section, ": ", join(items, ", "))
     end
-    print(io, "  Sources             : ")
+    print(io, "  Earthquake Sources  : stf_format=\"$(cfg.stf_format)\", stftype=\"$(cfg.stftype)\", fn_stf=\"$(cfg.fn_stf)\", sdep_fit=\"$(cfg.sdep_fit)\", number of sources=$(length(cfg.source))\n")
     for s in cfg.source
         show(io, MIME"text/plain"(), s)
         println(io)
         print(io, "                        ")
     end
+    print(io, "\n")
+
+    # velocity model
+    println(io, "  Velocity Model      : vmodel_type=\"$(cfg.vmodel_type)\", is_ocean=$(cfg.is_ocean), topo_flatten=$(cfg.topo_flatten), munk_profile=$(cfg.munk_profile), earth_flattening=$(cfg.earth_flattening)")
+    if cfg.vmodel_type == "lhm" || cfg.vmodel_type == "lgm"
+        println(io, "                        Layered Homogeneous Medium, fn_lhm=\"$(cfg.fn_lhm)\" ")
+    end
+    print(io, "                        ")
+    show(io, MIME"text/plain"(), cfg.vmodel)
+    println(io)
+    
 
 end
 
@@ -446,12 +524,13 @@ function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
         println(io, "  stabilize_pml    = $( _b(cfg.stabilize_pml) )           !! avoid low-v layer in PML region\n")
 
         println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Velocity model\n  !!\n")
-        println(io, "  vmodel_type      = $( _qs(cfg.vmodel_type) )            !! velocity model type 'uni'/'grd'/'lhm'")
-        println(io, "  is_ocean         = $( _b(cfg.is_ocean) )           !! topography z<0 is covered by ocean")
-        println(io, "  topo_flatten     = $( _b(cfg.topo_flatten) )          !! Force topography variation to zero (formerly is_flatten)")
-        println(io, "  munk_profile     = $( _b(cfg.munk_profile) )           !! velocity gradient inside the seawater column")
-        println(io, "  earth_flattening = $( _b(cfg.earth_flattening) )          !! Earth-flattening tranformation\n")
+        println(io, "  vmodel_type      = $( _qs(cfg.vmodel_type) )             !! velocity model type 'uni'/'grd'/'lhm'")
+        println(io, "  is_ocean         = $( _b(cfg.is_ocean) )                 !! topography z<0 is covered by ocean")
+        println(io, "  topo_flatten     = $( _b(cfg.topo_flatten) )             !! Force topography variation to zero (formerly is_flatten)")
+        println(io, "  munk_profile     = $( _b(cfg.munk_profile) )             !! velocity gradient inside the seawater column")
+        println(io, "  earth_flattening = $( _b(cfg.earth_flattening) )         !! Earth-flattening tranformation\n")
 
+        if cfg.vmodel_type == "uni"
         println(io, "    !! --------------------------------------------------------------------- !!\n    !! For uniform velocity model 'uni'\n    !!\n")
         println(io, "    vp0              = $(cfg.vp0)              !! P-wave velocity [km/s]")
         println(io, "    vs0              = $(cfg.vs0)              !! S-wave velocity [km/s]")
@@ -459,14 +538,17 @@ function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
         println(io, "    qp0              = $(cfg.qp0)              !! Qp")
         println(io, "    qs0              = $(cfg.qs0)              !! Qs")
         println(io, "    topo0            = $(cfg.topo0)                !! topography location\n")
-
+        end
+        if cfg.vmodel_type == "grd"
         println(io, "    !! --------------------------------------------------------------------- !!\n    !! For GMT grid file input 'grd' ( requires netcdf library )\n    !!\n")
         println(io, "    dir_grd          = $( _qs(cfg.dir_grd) )    !! directory for grd file")
         println(io, "    fn_grdlst        = $( _qs(cfg.fn_grdlst) )            !! grd file list")
         println(io, "    node_grd         = $(cfg.node_grd)                              !! input MPI node\n")
-
+        end
+        if cfg.vmodel_type == "lhm" || cfg.vmodel_type == "lgm"
         println(io, "    !! --------------------------------------------------------------------- !!\n    !! For layered homogeneous medium model ('lhm')\n    !!\n")
         println(io, "    fn_lhm           = $( _qs(cfg.fn_lhm) )    !! 1D velocity structure\n")
+        end
 
         println(io, "    !! --------------------------------------------------------------------- !!\n    !! For random medium models\n    !!\n")
         println(io, "    dir_rmed         = $( _qs(cfg.dir_rmed) )             !! location of random medium file")
@@ -503,7 +585,12 @@ function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
     if !isempty(cfg.source)
         write_sourceCF!(cfg.fn_stf, cfg.source)
     end
+
+    # write layered models if needed
+    if cfg.vmodel_type == "lhm" || cfg.vmodel_type == "lgm"
+        write_lhm!(cfg.fn_lhm, cfg.vmodel)
+    end
+
+
     return nothing
 end
-
-end # module

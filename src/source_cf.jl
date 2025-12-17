@@ -1,5 +1,3 @@
-module OpenSWPCSource
-
 export AbstractSource, SourceLLMWDC, SourceXYMWDC, write_sourceCF!, read_sourceCF
 
 abstract type AbstractSource end
@@ -43,10 +41,6 @@ struct SourceXYMWDC <: AbstractSource
     dip::Float64
     rake::Float64
 end
-
-# Small helper for compact numeric formatting
-_num(x::Real) = @sprintf("%g", x)
-_deg(x::Real) = @sprintf("%.1f°", x)
 
 """
 Compact REPL printing for `SourceLLMWDC`.
@@ -183,5 +177,3 @@ function read_sourceCF(path::AbstractString; format::Symbol = :auto)
         return out
     end
 end
-
-end # module

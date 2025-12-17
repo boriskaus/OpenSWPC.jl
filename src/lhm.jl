@@ -1,18 +1,16 @@
-module OpenSWPCLHM
-
+using Printf
 export Layer1D, LHMModel, write_lhm!, read_lhm
 
-using Printf
 
 """
-    Layer1D(z_top, z_bot; vp, vs, rho, qp=200, qs=200)
+    Layer1D(z; vp, vs, rho, qp=200, qs=200)
 
-One-dimensional homogeneous layer properties between depths `z_top` and `z_bot` (km).
+One-dimensional homogeneous layer properties at depth `z` (km).
 - `vp`, `vs`: km/s
 - `rho`: g/cm^3
-- `qp`, `qs`: quality factors (dimensionless)
+- `qp`, `qs`: quality factors (dimensionless)§
 """
-struct Layer1D
+struct Layer1D <: AbstractVelocityModel
     z::Float64
     vp::Float64
     vs::Float64
@@ -28,8 +26,17 @@ end
     LHMModel(layers::Vector{Layer1D})
 
 Container for a stack of `Layer1D` from shallow to deep.
+
+Example:
+====
+```julia
+julia> m = LHMModel([
+                      Layer1D(0.0; vp=5.5, vs=3.2, rho=2.7, qp=200, qs=150),
+                      Layer1D(5.0; vp=6.2, vs=3.6, rho=2.8, qp=300, qs=200),
+                    ])
+```
 """
-struct LHMModel
+struct LHMModel <: AbstractVelocityModel
     layers::Vector{Layer1D}
     function LHMModel(layers::Vector{Layer1D})
         isempty(layers) && error("Provide at least one layer")
@@ -38,7 +45,7 @@ struct LHMModel
     end
 end
 
-_num(x::Real) = @sprintf("%g", x)
+#_num(x::Real) = @sprintf("%g", x)
 
 function Base.show(io::IO, ::MIME"text/plain", l::Layer1D)
     print(io, "Layer1D(")
@@ -51,7 +58,7 @@ end
 function Base.show(io::IO, ::MIME"text/plain", m::LHMModel)
     println(io, "LHMModel:")
     for (i, l) in enumerate(m.layers)
-        print(io, "  [", i, "] ")
+        print(io, "                         [", i, "] ")
         show(io, MIME"text/plain"(), l)
         println(io)
     end
@@ -99,5 +106,3 @@ function read_lhm(path::AbstractString)
     end
     return LHMModel(layers)
 end
-
-end # module

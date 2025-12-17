@@ -96,4 +96,5 @@ function run_swpc(cfg::OpenSWPCConfig; kwargs...)
     np = cfg.nproc_x * cfg.nproc_y
     write_input!(cfg, cfg.input_file)
     run_swpc(np; input=cfg.input_file, kwargs...)
+    return nothing
 end

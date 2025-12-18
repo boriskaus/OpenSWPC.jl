@@ -73,5 +73,7 @@ export read_xy_slice, read_yz_slice, read_xz_slice, movie_slice
 include("vmodel_3D.jl")
 export VelocityModel3D
 
+include("netcdf_io.jl")
+export read_netcdf_cartdata, write_cartdata_netcdf
 
 end # module OpenSWPC

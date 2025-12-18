@@ -34,7 +34,7 @@ function generate_random_medium(;   nx=64,ny=64,nz=64,
     cmd = `$exe -o $outfile -nx $nx -ny $ny -nz $nz -dx $dx -dy $dy -dz $dz  -ax $ax -ay $ay -az $az -epsil $epsil -kappa $kappa -ptype $ptype`
     run(cmd);
 
-    println("Random medium velocity model written to $(outfile)")
+    println("Random medium velocity model written to: $(outfile)")
 
     return nothing
 end

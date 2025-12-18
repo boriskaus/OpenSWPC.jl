@@ -9,8 +9,9 @@ slice_xy(array::Array{T,2}) where T = reshape(array[:,:], size(array[:,:])...,1)
 slice_xz(array::Array{T,2}) where T = reshape(array[:,:], size(array,1),1,size(array,2))
 slice_yz(array::Array{T,2}) where T = reshape(array[:,:], 1,size(array,1),size(array,2))
 
-create_tuple_field(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,1}) where T = NamedTuple{(Symbol(name),)}((field[:],))
-create_tuple_field(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}) where T = NamedTuple{(Symbol(name),)}((field[:,:,:],))
+create_tuple_field(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,1}) where T = NamedTuple{(Symbol(name),)}((flip_ud(field[:]),))
+create_tuple_field(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,2}) where T = NamedTuple{(Symbol(name),)}((flip_ud(field[:,:]),))
+create_tuple_field(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}) where T = NamedTuple{(Symbol(name),)}((flip_ud(field[:,:,:]),))
 
 create_tuple_field_slice_xy(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,2}) where T = NamedTuple{(Symbol(name),)}((slice_xy(field[:,:]),))
 create_tuple_field_slice_xy(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}, itime) where T = NamedTuple{(Symbol(name),)}((slice_xy(field[:,:,itime]),))

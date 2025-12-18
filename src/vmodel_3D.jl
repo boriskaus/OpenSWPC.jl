@@ -101,14 +101,14 @@ function read_velocity_model_3d(filename::String, nx::Int, ny::Int, nz::Int)
 end
 
 function velocity_model_to_cartdata(model::VelocityModel3D)
-    return CartData(model.x, model.y, model.z, fields=(
-        vp = model.vp,
-        vs = model.vs,
-        ρ  = model.ρ,
-        μ  = model.μ,
-        λ  = model.λ,
-        qp = model.qp,
-        qs = model.qs,
+    return CartData(model.x, model.y, .-  model.z, fields=(
+        vp = reverse(model.vp, dims = 3),
+        vs = reverse(model.vs, dims = 3),
+        ρ  = reverse(model.ρ,  dims = 3),
+        μ  = reverse(model.μ,  dims = 3),
+        λ  = reverse(model.λ,  dims = 3),
+        qp = reverse(model.qp, dims = 3),
+        qs = reverse(model.qs, dims = 3),
     ))
 end
 
@@ -118,14 +118,14 @@ function cartdata_to_velocity_model(cart::CartData)
         nx, ny, nz,
         cart.x,
         cart.y,
-        cart.z,
-        cart.fields.vp,
-        cart.fields.vs,
-        cart.fields.ρ,
-        cart.fields.μ,
-        cart.fields.λ,
-        cart.fields.qp,
-        cart.fields.qs,
+        .-cart.z,
+        reverse(cart.fields.vp, dims = 3),
+        reverse(cart.fields.vs, dims = 3),
+        reverse(cart.fields.ρ,  dims = 3),
+        reverse(cart.fields.μ,  dims = 3),
+        reverse(cart.fields.λ,  dims = 3),
+        reverse(cart.fields.qp, dims = 3),
+        reverse(cart.fields.qs, dims = 3),
     )
 end
 

@@ -18,7 +18,7 @@ stations = [
 
 # Specify model
 cfg = OpenSWPCConfig(   odir="cf_swp_layers",
-                        nx = 140,   ny=140,  nz=140,
+                        nx = 128,   ny=128,  nz=128,
                         dx = 0.095, dy=0.095,dz=0.095,   
                         xbeg=-5,ybeg=-5,zbeg=-3.0,tbeg=0.0,
                         dt = 0.01, vcut=0.1, nt=300,

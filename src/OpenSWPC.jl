@@ -53,6 +53,10 @@ export UniformVelocityModel
 
 # ------------------------------------------------
 
+# Random medium field
+include("random_medium.jl")
+export generate_random_medium
+
 # Setup configuration of a model run
 include("openswpc_input.jl")
 export OpenSWPCConfig, write_input!
@@ -68,5 +72,6 @@ export read_xy_slice, read_yz_slice, read_xz_slice, movie_slice
 # 3D velocity model (vmodel = "user")
 include("vmodel_3D.jl")
 export VelocityModel3D
+
 
 end # module OpenSWPC

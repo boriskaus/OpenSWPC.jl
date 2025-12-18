@@ -1,5 +1,5 @@
 using Printf
-export VelocityModel3D, write_velocity_model_3d!, read_velocity_model_3d, velocity_model_to_cartdata
+export VelocityModel3D, write_velocity_model_3d!, read_velocity_model_3d, velocity_model_to_cartdata, cartdata_to_velocity_model, interpolate_velocity_model, phase_to_velocity_model
 
 """
     VelocityModel3D(nx, ny, nz, dx, dy, dz, x0, y0, z0, vp, vs, ρ, μ, λ, qp, qs)
@@ -129,7 +129,7 @@ function cartdata_to_velocity_model(cart::CartData)
     )
 end
 
-# These functions are probably overkill and a more efficient interpolate function could be used
+# These functions are probably overkill and a more efficient interpolate function could be used that doesn't require multiple conversions
 """
     interpolate_velocity_model(model::VelocityModel3D; input_file=nothing, input_dimensions=nothing)
 
@@ -150,7 +150,7 @@ function interpolate_velocity_model(model::VelocityModel3D, input_file::String)
     vel_cart = velocity_model_to_cartdata(model)
 
     # interpolate to new grid
-    model_int_cart = interpolate_cartdata(vel_cart, X, Y, Z)
+    model_int_cart = interpolate_datafields(vel_cart, X, Y, Z)
 
     # transform back to VelocityModel3D
     model_int = cartdata_to_velocity_model(model_int_cart)
@@ -193,7 +193,7 @@ function interpolate_velocity_model(model::VelocityModel3D, input_dimensions::Tu
     vel_cart = velocity_model_to_cartdata(model)
 
     # interpolate to new grid
-    model_int_cart = interpolate_cartdata(vel_cart, X, Y, Z)
+    model_int_cart = interpolate_datafields(vel_cart, X, Y, Z)
 
     # transform back to VelocityModel3D
     model_int = cartdata_to_velocity_model(model_int_cart)
@@ -219,7 +219,7 @@ function interpolate_velocity_model(model::VelocityModel3D, cfg::OpenSWPCConfig)
     vel_cart = velocity_model_to_cartdata(model)
 
     # interpolate to new grid
-    model_int_cart = interpolate_cartdata(vel_cart, X, Y, Z)
+    model_int_cart = interpolate_datafields(vel_cart, X, Y, Z)
 
     # transform back to VelocityModel3D
     model_int = cartdata_to_velocity_model(model_int_cart)

@@ -4,6 +4,8 @@ using NCDatasets, GeophysicalModelGenerator
 
 export read_xy_slice, read_yz_slice, read_xz_slice, movie_slice
 
+flip_ud(A::AbstractArray) = reverse(A, dims=ndims(A))
+ 
 slice_xy(array::Array{T,2}) where T = reshape(array[:,:], size(array[:,:])...,1)
 slice_xz(array::Array{T,2}) where T = reshape(array[:,:], size(array,1),1,size(array,2))
 slice_yz(array::Array{T,2}) where T = reshape(array[:,:], 1,size(array,1),size(array,2))
@@ -14,10 +16,10 @@ create_tuple_field(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,
 
 create_tuple_field_slice_xy(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,2}) where T = NamedTuple{(Symbol(name),)}((slice_xy(field[:,:]),))
 create_tuple_field_slice_xy(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}, itime) where T = NamedTuple{(Symbol(name),)}((slice_xy(field[:,:,itime]),))
-create_tuple_field_slice_xz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,2}) where T = NamedTuple{(Symbol(name),)}((slice_xz(field[:,:]),))
-create_tuple_field_slice_xz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}, itime) where T = NamedTuple{(Symbol(name),)}((slice_xz(field[:,:,itime]),))
-create_tuple_field_slice_yz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,2}) where T = NamedTuple{(Symbol(name),)}((slice_yz(field[:,:]),))
-create_tuple_field_slice_yz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}, itime) where T = NamedTuple{(Symbol(name),)}((slice_yz(field[:,:,itime]),))
+create_tuple_field_slice_xz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,2}) where T = NamedTuple{(Symbol(name),)}((flip_ud(slice_xz(field[:,:])),))
+create_tuple_field_slice_xz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}, itime) where T = NamedTuple{(Symbol(name),)}((flip_ud(slice_xz(field[:,:,itime])),))
+create_tuple_field_slice_yz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,2}) where T = NamedTuple{(Symbol(name),)}((flip_ud(slice_yz(field[:,:])),))
+create_tuple_field_slice_yz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}, itime) where T = NamedTuple{(Symbol(name),)}((flip_ud(slice_yz(field[:,:,itime])),))
 
 create_nt(name::String, data) = NamedTuple{(Symbol(name),)}((data,))
 remove_field(nt::NamedTuple, k::Symbol) = Base.structdiff(nt, (; k => nothing))
@@ -49,7 +51,7 @@ julia> file = joinpath(dir, files[1])
 julia> data = read_xy_slice(file, -2.5, timestep=5, cart_data=true)
 ```
 """
-function read_xy_slice(file::AbstractString, depth=0.0; timestep::Int=1, cart_data=true, depth_negative=true)
+function read_xy_slice(file::AbstractString, depth=0.0; timestep::Int=1, cart_data=true)
     ds = NCDataset(file)
     @assert isnetcdf(file) "File $file is not a NetCDF file"
     @assert haskey(ds, "y") "File $file does not contain variable 'y'"
@@ -71,7 +73,7 @@ function read_xy_slice(file::AbstractString, depth=0.0; timestep::Int=1, cart_da
     out = GeoData(Lon,Lat,Dep, fields)  
     if cart_data
         X,Y,Z = xyz_grid(x,y,depth);
-        out = CartData(X,Y,Z, fields)  
+        out = CartData(X,Y,-flip_ud(Z), fields)  
     end
 
     return out, t[timestep]
@@ -81,7 +83,7 @@ end
     data, t  = read_xz_slice(file::AbstractString, y0=0.0; timestep::Int=1)
 extracts a x,z slides at given y0 from netcdf file
 """
-function read_xz_slice(file::AbstractString, y0=0.0; timestep::Int=1, depth_negative=true)
+function read_xz_slice(file::AbstractString, y0=0.0; timestep::Int=1)
     ds = NCDataset(file)
     @assert isnetcdf(file) "File $file is not a NetCDF file"
     @assert haskey(ds, "z") "File $file does not contain variable 'z'"
@@ -90,10 +92,7 @@ function read_xz_slice(file::AbstractString, y0=0.0; timestep::Int=1, depth_nega
     fields = extract_fields_slice(ds, timestep, ("x","z"))
     
     X,Y,Z = xyz_grid(ds["x"][:],y0,ds["z"][:]);
-#    if depth_negative
-#        Z .= -abs.(Z)
-#    end
-    out = CartData(X,Y,Z, fields)  
+    out = CartData(X,Y,-flip_ud(Z), fields)  
    
     return out, t[timestep]
 end
@@ -102,7 +101,7 @@ end
     data, t  = read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1)
 extracts a y,z slides at given x0 from netcdf file
 """
-function read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1, depth_negative=true)
+function read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1)
     ds = NCDataset(file)
     @assert isnetcdf(file) "File $file is not a NetCDF file"
     @assert haskey(ds, "z") "File $file does not contain variable 'z'"
@@ -112,10 +111,7 @@ function read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1, depth_nega
     fields = extract_fields_slice(ds, timestep, ("y","z"))
     
     X,Y,Z = xyz_grid(x0, ds["y"][:], ds["z"][:]);
-  #  if depth_negative
-  #      Z .= -abs.(Z)
-  #   end
-    out = CartData(X,Y,Z, fields)  
+    out = CartData(X,Y,flip_ud(Z), fields)  
    
     return out, t[timestep]
 end
@@ -196,7 +192,7 @@ reads a OpenSWPC netcdf file and saves a movie of slices at given `x0`,`y0` or `
 You need to indicate which slice you want (`:xz`,`:yz` or `:xy`)
 
 """
-function movie_slice(file::AbstractString; x0=0.0, y0=0, z0=0, slice=:xy, depth_negative=true)
+function movie_slice(file::AbstractString; x0=0.0, y0=0, z0=0, slice=:xy)
     ds  = NCDataset(file)
     t_v = ds["t"][:]
     if t_v[1]>1e10
@@ -211,11 +207,11 @@ function movie_slice(file::AbstractString; x0=0.0, y0=0, z0=0, slice=:xy, depth_
     for (itime,t) in enumerate(t_v)    
 
         if slice == :xy
-            dat, _ = read_xy_slice(file,z0, timestep=itime, depth_negative=depth_negative)
+            dat, _ = read_xy_slice(file,z0, timestep=itime)
         elseif slice == :xz
-            dat, _ = read_xz_slice(file,y0, timestep=itime, depth_negative=depth_negative)
+            dat, _ = read_xz_slice(file,y0, timestep=itime)
         elseif slice == :yz 
-            dat, _ = read_yz_slice(file,x0, timestep=itime, depth_negative=depth_negative)
+            dat, _ = read_yz_slice(file,x0, timestep=itime)
         end
         
         name = file*".paraview"*string(itime)*".vts"

@@ -50,6 +50,7 @@ export Layer1D, LHMModel, write_lhm!, read_lhm
 # Uniform velocity model (vmodel = "uni")
 include("vmodel_uni.jl")
 export UniformVelocityModel
+
 # ------------------------------------------------
 
 # Setup configuration of a model run
@@ -63,5 +64,9 @@ export swpc_path, swpc_cmd, run_swpc
 # read output files
 include("read_output.jl")
 export read_xy_slice, read_yz_slice, read_xz_slice, movie_slice
+
+# 3D velocity model (vmodel = "user")
+include("vmodel_3D.jl")
+export VelocityModel3D
 
 end # module OpenSWPC

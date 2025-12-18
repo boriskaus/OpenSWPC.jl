@@ -1,5 +1,6 @@
 using Printf
 export VelocityModel3D, write_velocity_model_3d!, read_velocity_model_3d, velocity_model_to_cartdata, cartdata_to_velocity_model, interpolate_velocity_model, phase_to_velocity_model
+using GeophysicalModelGenerator
 
 """
     VelocityModel3D(nx, ny, nz, dx, dy, dz, x0, y0, z0, vp, vs, ρ, μ, λ, qp, qs)
@@ -112,8 +113,21 @@ function velocity_model_to_cartdata(model::VelocityModel3D)
     ))
 end
 
+"""
+    cartdata_to_velocity_model(cart::CartData)
+
+Convert a `CartData` object to a `VelocityModel3D`.
+
+"""
 function cartdata_to_velocity_model(cart::CartData)
     nx, ny, nz = size(cart.x)
+    @assert haskey(cart.fields, :vp) "CartData missing 'vp' field"
+    @assert haskey(cart.fields, :vs) "CartData missing 'vs' field"
+    @assert haskey(cart.fields, :ρ)  "CartData missing 'ρ' field"
+    @assert haskey(cart.fields, :μ)  "CartData missing 'μ' field"
+    @assert haskey(cart.fields, :λ)  "CartData missing 'λ' field"
+    @assert haskey(cart.fields, :qp) "CartData missing 'qp' field"
+    @assert haskey(cart.fields, :qs) "CartData missing 'qs' field"
     return VelocityModel3D(
         nx, ny, nz,
         cart.x,

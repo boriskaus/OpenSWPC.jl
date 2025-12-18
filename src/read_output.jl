@@ -19,6 +19,8 @@ create_tuple_field_slice_xz(name::String, field::NCDatasets.CommonDataModel.CFVa
 create_tuple_field_slice_yz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,2}) where T = NamedTuple{(Symbol(name),)}((slice_yz(field[:,:]),))
 create_tuple_field_slice_yz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}, itime) where T = NamedTuple{(Symbol(name),)}((slice_yz(field[:,:,itime]),))
 
+create_nt(name::String, data) = NamedTuple{(Symbol(name),)}((data,))
+remove_field(nt::NamedTuple, k::Symbol) = Base.structdiff(nt, (; k => nothing))
 
 """
     data, t  = read_xy_slice(file::AbstractString, depth=0.0; timestep::Int=1, cart_data=false) 
@@ -118,27 +120,64 @@ function extract_fields_slice(ds::NCDataset, timestep::Int, types=("x","y"))
     for varname in keys(ds)
         # add all 2D fields
         if !(varname in types)
+            unit = strip(get(ds[varname].var.attrib, "units", ""))
+            unit = replace(unit, "0^" => "e", " "=>"")
+            unit = replace(unit, "^" => "")
+            save_name = varname*"_"*unit
             if length(size(ds[varname])) == 2
                 if types == ("x","y")
-                    fields = merge(fields, create_tuple_field_slice_xy(varname, ds[varname]))
+                    fields = merge(fields, create_tuple_field_slice_xy(save_name, ds[varname]))
                 elseif types == ("x","z")
-                    fields = merge(fields, create_tuple_field_slice_xz(varname, ds[varname]))
+                    fields = merge(fields, create_tuple_field_slice_xz(save_name, ds[varname]))
                 elseif types == ("y","z")
-                    fields = merge(fields, create_tuple_field_slice_yz(varname, ds[varname]))
+                    fields = merge(fields, create_tuple_field_slice_yz(save_name, ds[varname]))
                 else
                     error("Unsupported variable dimension for types $types")
                 end
             elseif length(size(ds[varname])) == 3
                 if types == ("x","y")
-                    fields = merge(fields, create_tuple_field_slice_xy(varname, ds[varname], timestep))
+                    fields = merge(fields, create_tuple_field_slice_xy(save_name, ds[varname], timestep))
                 elseif types == ("x","z")
-                    fields = merge(fields, create_tuple_field_slice_xz(varname, ds[varname], timestep))
+                    fields = merge(fields, create_tuple_field_slice_xz(save_name, ds[varname], timestep))
                 elseif types == ("y","z")
-                    fields = merge(fields, create_tuple_field_slice_yz(varname, ds[varname], timestep))
+                    fields = merge(fields, create_tuple_field_slice_yz(save_name, ds[varname], timestep))
                 end    
             end
         end
     end
+
+    # create velocity vectors
+    if  haskey(fields,Symbol("Vx_m/s")) && 
+        haskey(fields,Symbol("Vy_m/s")) &&
+        haskey(fields,Symbol("Vz_m/s"))
+
+        Vx = fields[Symbol("Vx_m/s")]
+        Vy = fields[Symbol("Vy_m/s")]
+        Vz = fields[Symbol("Vz_m/s")]
+
+        V_nt   = create_nt("V_m/s",(Vx,Vy,Vz))
+        fields = merge(fields, V_nt)
+        fields = remove_field(fields, Symbol("Vx_m/s"))
+        fields = remove_field(fields, Symbol("Vy_m/s"))
+        fields = remove_field(fields, Symbol("Vz_m/s"))
+    end
+
+    # create displacement vectors
+    if  haskey(fields,Symbol("Ux_m")) && 
+        haskey(fields,Symbol("Uy_m")) &&
+        haskey(fields,Symbol("Uz_m"))
+
+        Ux = fields[Symbol("Ux_m")]
+        Uy = fields[Symbol("Uy_m")]
+        Uz = fields[Symbol("Uz_m")]
+
+        U_nt   = create_nt("U_m",(Ux,Uy,Uz))
+        fields = merge(fields, U_nt)
+        fields = remove_field(fields, Symbol("Ux_m"))
+        fields = remove_field(fields, Symbol("Uy_m"))
+        fields = remove_field(fields, Symbol("Uz_m"))
+    end
+
 
     return fields
 end

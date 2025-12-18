@@ -2,7 +2,7 @@
 # This assumes data to be saved in netcdf format
 using NCDatasets, GeophysicalModelGenerator
 
-export read_xy_slice, read_yz_slice, read_xz_slice
+export read_xy_slice, read_yz_slice, read_xz_slice, movie_slice
 
 slice_xy(array::Array{T,2}) where T = reshape(array[:,:], size(array[:,:])...,1)
 slice_xz(array::Array{T,2}) where T = reshape(array[:,:], size(array,1),1,size(array,2))
@@ -49,7 +49,7 @@ julia> file = joinpath(dir, files[1])
 julia> data = read_xy_slice(file, -2.5, timestep=5, cart_data=true)
 ```
 """
-function read_xy_slice(file::AbstractString, depth=0.0; timestep::Int=1, cart_data=true)
+function read_xy_slice(file::AbstractString, depth=0.0; timestep::Int=1, cart_data=true, depth_negative=true)
     ds = NCDataset(file)
     @assert isnetcdf(file) "File $file is not a NetCDF file"
     @assert haskey(ds, "y") "File $file does not contain variable 'y'"
@@ -81,7 +81,7 @@ end
     data, t  = read_xz_slice(file::AbstractString, y0=0.0; timestep::Int=1)
 extracts a x,z slides at given y0 from netcdf file
 """
-function read_xz_slice(file::AbstractString, y0=0.0; timestep::Int=1)
+function read_xz_slice(file::AbstractString, y0=0.0; timestep::Int=1, depth_negative=true)
     ds = NCDataset(file)
     @assert isnetcdf(file) "File $file is not a NetCDF file"
     @assert haskey(ds, "z") "File $file does not contain variable 'z'"
@@ -90,6 +90,9 @@ function read_xz_slice(file::AbstractString, y0=0.0; timestep::Int=1)
     fields = extract_fields_slice(ds, timestep, ("x","z"))
     
     X,Y,Z = xyz_grid(ds["x"][:],y0,ds["z"][:]);
+#    if depth_negative
+#        Z .= -abs.(Z)
+#    end
     out = CartData(X,Y,Z, fields)  
    
     return out, t[timestep]
@@ -99,7 +102,7 @@ end
     data, t  = read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1)
 extracts a y,z slides at given x0 from netcdf file
 """
-function read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1)
+function read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1, depth_negative=true)
     ds = NCDataset(file)
     @assert isnetcdf(file) "File $file is not a NetCDF file"
     @assert haskey(ds, "z") "File $file does not contain variable 'z'"
@@ -109,6 +112,9 @@ function read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1)
     fields = extract_fields_slice(ds, timestep, ("y","z"))
     
     X,Y,Z = xyz_grid(x0, ds["y"][:], ds["z"][:]);
+  #  if depth_negative
+  #      Z .= -abs.(Z)
+  #   end
     out = CartData(X,Y,Z, fields)  
    
     return out, t[timestep]
@@ -180,4 +186,44 @@ function extract_fields_slice(ds::NCDataset, timestep::Int, types=("x","y"))
 
 
     return fields
+end
+
+
+"""
+    movie_slice(file::AbstractString; x0=0.0, y0=0,z0=0, slice=:xy, depth_negative=true)
+
+reads a OpenSWPC netcdf file and saves a movie of slices at given `x0`,`y0` or `z0`
+You need to indicate which slice you want (`:xz`,`:yz` or `:xy`)
+
+"""
+function movie_slice(file::AbstractString; x0=0.0, y0=0, z0=0, slice=:xy, depth_negative=true)
+    ds  = NCDataset(file)
+    t_v = ds["t"][:]
+    if t_v[1]>1e10
+        t_v[1] = 0      # sometimes, there appears to be a bug here
+    end
+
+    pvd_file = file
+    pvd_file = replace(pvd_file, "." => "_")
+    pvd_file = pvd_file * ".pvd"
+    pvd_dir  = "slices_paraview"
+    movie = movie_paraview(name=pvd_file, Initialize=true)
+    for (itime,t) in enumerate(t_v)    
+
+        if slice == :xy
+            dat, _ = read_xy_slice(file,z0, timestep=itime, depth_negative=depth_negative)
+        elseif slice == :xz
+            dat, _ = read_xz_slice(file,y0, timestep=itime, depth_negative=depth_negative)
+        elseif slice == :yz 
+            dat, _ = read_yz_slice(file,x0, timestep=itime, depth_negative=depth_negative)
+        end
+        
+        name = file*".paraview"*string(itime)*".vts"
+  
+        movie= write_paraview(dat, name,pvd=movie, time=t, directory=pvd_dir)
+    end
+    movie_paraview(pvd=movie, Finalize=true);
+
+    println("Movie saved to ", pvd_file)
+    return nothing
 end

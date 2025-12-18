@@ -62,6 +62,6 @@ export swpc_path, swpc_cmd, run_swpc
 
 # read output files
 include("read_output.jl")
-export read_xy_slice, read_yz_slice, read_xz_slice
+export read_xy_slice, read_yz_slice, read_xz_slice, movie_slice
 
 end # module OpenSWPC

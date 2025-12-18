@@ -74,6 +74,6 @@ include("vmodel_3D.jl")
 export VelocityModel3D
 
 include("netcdf_io.jl")
-export read_netcdf_cartdata, write_cartdata_netcdf
+export read_netcdf, write_netcdf
 
 end # module OpenSWPC

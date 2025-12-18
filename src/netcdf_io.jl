@@ -1,13 +1,13 @@
 using NCDatasets
-export read_netcdf_cartdata, write_cartdata_netcdf
+export read_netcdf, write_netcdf
 
 """
-    data = read_netcdf_cartdata(ncfile::String; xbeg=0.0, ybeg=0.0, zbeg=0.0)
+    data = read_netcdf(ncfile::String; xbeg=0.0, ybeg=0.0, zbeg=0.0)
 
 Reads a 3D NetCDF file used in OpenSWPC and returns a `CartData` object.
 Note that the z-coordinates are flipped to match the depth convention in GMG (positive up).
 """
-function read_netcdf_cartdata(ncfile::String; xbeg=0.0, ybeg=0.0, zbeg=0.0)
+function read_netcdf(ncfile::String; xbeg=0.0, ybeg=0.0, zbeg=0.0)
     ds = NCDataset(ncfile)
     
     x = ds["x"][:] .+ xbeg
@@ -28,20 +28,19 @@ end
 
 
 """
-    data = read_netcdf_cartdata(ncfile::String, cfg::OpenSWPC.OpenSWPCConfig)   
+    data = read_netcdf(ncfile::String, cfg::OpenSWPC.OpenSWPCConfig)   
 Reads a 3D NetCDF file used in OpenSWPC and returns a `CartData` object, consistent with the model parameters in `cfg`.
 """
-read_netcdf_cartdata(ncfile::String, cfg::OpenSWPC.OpenSWPCConfig) = 
-    read_netcdf_cartdata(ncfile; xbeg=cfg.xbeg, ybeg=cfg.ybeg, zbeg=cfg.zbeg)
-
+read_netcdf(ncfile::String, cfg::OpenSWPC.OpenSWPCConfig) = 
+    read_netcdf(ncfile; xbeg=cfg.xbeg, ybeg=cfg.ybeg, zbeg=cfg.zbeg)
 
 """
-    write_cartdata_netcdf(data::CartData, filename="output.nc")
+    write_netcdf(data::CartData, filename="output.nc")
 
 Writes a `CartData` object to a NetCDF file as used in OpenSWPC.
 Note that the z-coordinates are flipped to match the depth convention in OpenSWPC (positive down).
 """
-function write_cartdata_netcdf(data::CartData, filename="output.nc")
+function write_netcdf(data::CartData, filename="output.nc")
     ds = NCDataset(filename,"c")
 
     x = Float32.(data.x.val[:,1,1])

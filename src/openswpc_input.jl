@@ -31,12 +31,13 @@ Sections and notable fields:
 - Body/Plane wave modes: `bf_mode`, `pw_mode` with plane-wave geometry
     (`pw_ztop`, `pw_zlen`, `pw_ps`, `pw_strike/dip/rake`).
 - Absorbing BC: `abc_type`, `na`, `stabilize_pml`.
-- Velocity model: choose among `uniform`/`grd`/`lhm`/`lgm` via `vmodel_type` set 
+- Velocity model: choose among `uniform`/`grd`/`lhm`/`lgm`/`velm` via `vmodel_type` set 
     `is_ocean`, `topo_flatten`, `munk_profile`, `earth_flattening`.
 
     - Uniform: set when `vmodel=UniformVelocityModel(...)` is passed. See `UniformVelocityModel` for details.
     - Layered homogeneous ('lhm' or `lgm`): `fn_lhm`.
     - GMT grid: `dir_grd`, `fn_grdlst`, `node_grd`.
+    - 2D/3D velocity model from file: `dir_velm`, `fn_velm`.
     - Random medium: `dir_rmed`, `fn_grdlst_rmed`, `rhomin`, `fn_rmed0`.
 - Checkpoint/Restart: `is_ckp`, `ckpdir`, `ckp_interval`, `ckp_time`, `ckp_seq`.
 - Reciprocity Green's Function: `green_*` fields.
@@ -166,6 +167,10 @@ mutable struct OpenSWPCConfig
     # For layered homogeneous medium model
     fn_lhm::String
 
+    # For reading a 2D/3D velocity model from disk
+    dir_velm::String
+    fn_velm::String
+
     # For random medium models
     dir_rmed::String
     fn_grdlst_rmed::String
@@ -264,6 +269,10 @@ function OpenSWPCConfig(; kwargs...)
         # Layered homogeneous medium
         fn_lhm = "lhm.dat",
         
+        # 2D/3D velocity model
+        dir_velm = "./",   # not used if empty
+        fn_velm = "velocity_model.nc",    # not used if empty
+
         # Random medium
         dir_rmed = "./in/", fn_grdlst_rmed = "grd.lst", rhomin = 1.0, fn_rmed0 = "dummy.ns",
         
@@ -301,6 +310,11 @@ function OpenSWPCConfig(; kwargs...)
         cfg = merge(cfg, (; vmodel_type))
     end
 
+    if isa(cfg.vmodel, FullVelocityModel)
+        vmodel_type = "velm"
+        cfg = merge(cfg, (; vmodel_type))
+    end
+
     if  eltype(cfg.source)==SourceLLMWDC
         stf_format = "llmwdc"
         cfg = merge(cfg, (; stf_format))
@@ -333,6 +347,7 @@ function OpenSWPCConfig(; kwargs...)
         cfg.vp0, cfg.vs0, cfg.rho0, cfg.qp0, cfg.qs0, cfg.topo0,
         cfg.dir_grd, cfg.fn_grdlst, cfg.node_grd,
         cfg.fn_lhm,
+        cfg.dir_velm, cfg.fn_velm,
         cfg.dir_rmed, cfg.fn_grdlst_rmed, cfg.rhomin, cfg.fn_rmed0,
         cfg.is_ckp, cfg.ckpdir, cfg.ckp_interval, cfg.ckp_time, cfg.ckp_seq,
         cfg.green_mode, cfg.green_stnm, cfg.green_cmp, cfg.green_trise, cfg.green_bforce,
@@ -448,6 +463,8 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
     println(io, "  Velocity Model      : vmodel_type=\"$(cfg.vmodel_type)\", is_ocean=$(cfg.is_ocean), topo_flatten=$(cfg.topo_flatten), munk_profile=$(cfg.munk_profile), earth_flattening=$(cfg.earth_flattening)")
     if cfg.vmodel_type == "lhm" || cfg.vmodel_type == "lgm"
         println(io, "                        Layered Homogeneous Medium, fn_lhm=\"$(cfg.fn_lhm)\" ")
+    elseif cfg.vmodel_type == "velm"
+        println(io, "                        Velocity model from file, dir_velm=\"$(cfg.dir_velm)\", fn_velm=\"$(cfg.fn_velm)\" ")
     end
     print(io, "                        ")
     show(io, MIME"text/plain"(), cfg.vmodel)
@@ -456,7 +473,12 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
 
 end
 
-function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
+"""
+    write_input!(cfg::OpenSWPCConfig)
+Write the OpenSWPC input file as specified in `cfg.input_file`.
+"""
+function write_input!(cfg::OpenSWPCConfig)
+    path=cfg.input_file
     open(path, "w") do io
         println(io, " !! ----------------------------------------------------------------------- !!")
         println(io, "  !!\n  !!  SWPC input file\n  !!\n !! ----------------------------------------------------------------------- !!\n")
@@ -532,15 +554,15 @@ function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
         println(io, "  fn_stf           = $( _qs(cfg.fn_stf) )   !! Source grid file name\n")
         println(io, "  sdep_fit         = $( _qs(cfg.sdep_fit) )\n")
 
-        println(io, "    !! --------------------------------------------------------------------- !!\n    !! Body force source mode\n    !!\n    bf_mode          = $( _b(cfg.bf_mode) )\n\n")
+        println(io, "  !! --------------------------------------------------------------------- !!\n    !! Body force source mode\n    !!\n    bf_mode          = $( _b(cfg.bf_mode) )\n\n")
 
-        println(io, "    !! --------------------------------------------------------------------- !!\n    !! Plane wave source mode\n    !!\n    pw_mode          = $( _b(cfg.pw_mode) )   !! plane wave input. neglects fn_stf")
-        println(io, "    pw_ztop          = $(cfg.pw_ztop)      !! top z-coordinate of the initial plane wave")
-        println(io, "    pw_zlen          = $(cfg.pw_zlen)       !! wavelength of the initial plane wave")
-        println(io, "    pw_ps            = $( _qs(cfg.pw_ps) )       !! 'p' P-wave 's' S-wave")
-        println(io, "    pw_strike        = $(cfg.pw_strike)       !! strike direction of plane wave (deg.)")
-        println(io, "    pw_dip           = $(cfg.pw_dip)       !! dip of plane wave (deg.)")
-        println(io, "    pw_rake          = $(cfg.pw_rake)       !! rake of plane S-wave polarization (deg.)\n")
+        println(io, "  !! --------------------------------------------------------------------- !!\n    !! Plane wave source mode\n    !!\n    pw_mode          = $( _b(cfg.pw_mode) )   !! plane wave input. neglects fn_stf")
+        println(io, "  pw_ztop          = $(cfg.pw_ztop)      !! top z-coordinate of the initial plane wave")
+        println(io, "  pw_zlen          = $(cfg.pw_zlen)       !! wavelength of the initial plane wave")
+        println(io, "  pw_ps            = $( _qs(cfg.pw_ps) )       !! 'p' P-wave 's' S-wave")
+        println(io, "  pw_strike        = $(cfg.pw_strike)       !! strike direction of plane wave (deg.)")
+        println(io, "  pw_dip           = $(cfg.pw_dip)       !! dip of plane wave (deg.)")
+        println(io, "  pw_rake          = $(cfg.pw_rake)       !! rake of plane S-wave polarization (deg.)\n")
 
         println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Absorbing Boundary Condition\n  !!\n")
         println(io, "  abc_type         = $( _qs(cfg.abc_type) )            !! 'pml' or 'cerjan'")
@@ -555,30 +577,36 @@ function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
         println(io, "  earth_flattening = $( _b(cfg.earth_flattening) )         !! Earth-flattening tranformation\n")
 
         if cfg.vmodel_type == "uni"
-        println(io, "    !! --------------------------------------------------------------------- !!\n    !! For uniform velocity model 'uni'\n    !!\n")
-        println(io, "    vp0              = $(cfg.vp0)              !! P-wave velocity [km/s]")
-        println(io, "    vs0              = $(cfg.vs0)              !! S-wave velocity [km/s]")
-        println(io, "    rho0             = $(cfg.rho0)              !! mass density    [g/cm^3]")
-        println(io, "    qp0              = $(cfg.qp0)              !! Qp")
-        println(io, "    qs0              = $(cfg.qs0)              !! Qs")
-        println(io, "    topo0            = $(cfg.topo0)                !! topography location\n")
+        println(io, "   !! --------------------------------------------------------------------- !!\n    !! For uniform velocity model 'uni'\n    !!\n")
+        println(io, "   vp0              = $(cfg.vp0)              !! P-wave velocity [km/s]")
+        println(io, "   vs0              = $(cfg.vs0)              !! S-wave velocity [km/s]")
+        println(io, "   rho0             = $(cfg.rho0)              !! mass density    [g/cm^3]")
+        println(io, "   qp0              = $(cfg.qp0)              !! Qp")
+        println(io, "   qs0              = $(cfg.qs0)              !! Qs")
+        println(io, "   topo0            = $(cfg.topo0)                !! topography location\n")
         end
         if cfg.vmodel_type == "grd"
-        println(io, "    !! --------------------------------------------------------------------- !!\n    !! For GMT grid file input 'grd' ( requires netcdf library )\n    !!\n")
-        println(io, "    dir_grd          = $( _qs(cfg.dir_grd) )    !! directory for grd file")
-        println(io, "    fn_grdlst        = $( _qs(cfg.fn_grdlst) )            !! grd file list")
-        println(io, "    node_grd         = $(cfg.node_grd)                              !! input MPI node\n")
+        println(io, "   !! --------------------------------------------------------------------- !!\n    !! For GMT grid file input 'grd' ( requires netcdf library )\n    !!\n")
+        println(io, "   dir_grd          = $( _qs(cfg.dir_grd) )    !! directory for grd file")
+        println(io, "   fn_grdlst        = $( _qs(cfg.fn_grdlst) )            !! grd file list")
+        println(io, "   node_grd         = $(cfg.node_grd)                              !! input MPI node\n")
         end
         if cfg.vmodel_type == "lhm" || cfg.vmodel_type == "lgm"
-        println(io, "    !! --------------------------------------------------------------------- !!\n    !! For layered homogeneous medium model ('lhm')\n    !!\n")
-        println(io, "    fn_lhm           = $( _qs(cfg.fn_lhm) )    !! 1D velocity structure\n")
+        println(io, "   !! --------------------------------------------------------------------- !!\n    !! For layered homogeneous medium model ('lhm')\n    !!\n")
+        println(io, "   fn_lhm           = $( _qs(cfg.fn_lhm) )    !! 1D velocity structure\n")
+        end
+        if cfg.vmodel_type == "velm" 
+        println(io, "   !! --------------------------------------------------------------------- !!\n    !! For velocity model from file ('velm')\n    !!\n")
+        println(io, "   topo0            = $(cfg.topo0)                !! topography location")
+        println(io, "   dir_velm         = $( _qs(cfg.dir_velm) )    !! directory for velocity model file")
+        println(io, "   fn_velm          = $( _qs(cfg.fn_velm) )     !! velocity model file\n")
         end
 
-        println(io, "    !! --------------------------------------------------------------------- !!\n    !! For random medium models\n    !!\n")
-        println(io, "    dir_rmed         = $( _qs(cfg.dir_rmed) )             !! location of random medium file")
-        println(io, "    fn_grdlst_rmed   = $( _qs(cfg.fn_grdlst_rmed) ) !! grd file list")
-        println(io, "    rhomin           = $(cfg.rhomin)                 !! minimum density threshold")
-        println(io, "    fn_rmed0         = $( _qs(cfg.fn_rmed0) )          !! vel. purturb. on a uniform media\n")
+        println(io, "   !! --------------------------------------------------------------------- !!\n    !! For random medium models\n    !!\n")
+        println(io, "   dir_rmed         = $( _qs(cfg.dir_rmed) )             !! location of random medium file")
+        println(io, "   fn_grdlst_rmed   = $( _qs(cfg.fn_grdlst_rmed) ) !! grd file list")
+        println(io, "   rhomin           = $(cfg.rhomin)                 !! minimum density threshold")
+        println(io, "   fn_rmed0         = $( _qs(cfg.fn_rmed0) )          !! vel. purturb. on a uniform media\n")
 
         println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Checkpoint/Restart\n  !!\n")
         println(io, "  is_ckp           = $( _b(cfg.is_ckp) )          !! perform checkpoint/restart")
@@ -613,6 +641,11 @@ function write_input!(cfg::OpenSWPCConfig, path::AbstractString="input.dat")
     # write layered models if needed
     if cfg.vmodel_type == "lhm" || cfg.vmodel_type == "lgm"
         write_lhm!(cfg.fn_lhm, cfg.vmodel)
+    end
+
+    # write velocity model if needed 
+    if cfg.vmodel_type == "velm"
+        write_netcdf(cfg.vmodel.data, joinpath(cfg.dir_velm, cfg.fn_velm))
     end
 
     if !isempty(cfg.stations)

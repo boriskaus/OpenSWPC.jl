@@ -185,7 +185,7 @@ end
 
 
 """
-    movie_slice(file::AbstractString; x0=0.0, y0=0,z0=0, slice=:xy, depth_negative=true)
+    movie_slice(file::AbstractString; x0=0.0, y0=0,z0=0, slice=:xy)
 
 reads a OpenSWPC netcdf file and saves a movie of slices at given `x0`,`y0` or `z0`
 You need to indicate which slice you want (`:xz`,`:yz` or `:xy`)
@@ -220,5 +220,71 @@ function movie_slice(file::AbstractString; x0=0.0, y0=0, z0=0, slice=:xy)
     movie_paraview(pvd=movie, Finalize=true);
 
     println("Movie saved to ", pvd_file)
+    return pvd_file
+end
+
+
+
+
+"""
+    movie_slice(cfg::OpenSWPCConfig)
+
+Creates movies of all slices specified in the configuration `cfg`.
+"""
+function movie_slice(cfg::OpenSWPCConfig)
+    curdir = pwd()
+    cd(cfg.odir)
+
+    listfiles = String[]
+    if cfg.xy_ps_sw
+        fname = movie_slice("swpc.3d.xy.ps.nc", z0=cfg.z0_xy, slice=:xy)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.xz_ps_sw
+        fname = movie_slice("swpc.3d.xz.ps.nc", y0=cfg.y0_xz, slice=:xz)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.yz_ps_sw
+        fname = movie_slice("swpc.3d.yz.ps.nc", x0=cfg.x0_yz, slice=:yz)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.fs_ps_sw
+        fname = movie_slice("swpc.3d.fs.ps.nc", slice=:xy)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.ob_ps_sw
+        fname = movie_slice("swpc.3d.ob.ps.nc", slice=:xy)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.xy_v_sw
+        fname = movie_slice("swpc.3d.xy.v.nc", z0=cfg.z0_xy, slice=:xy)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.xz_v_sw
+        fname = movie_slice("swpc.3d.xz.v.nc", y0=cfg.y0_xz, slice=:xz)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.yz_v_sw
+        fname = movie_slice("swpc.3d.yz.v.nc", x0=cfg.x0_yz, slice=:yz)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.xy_u_sw
+        fname = movie_slice("swpc.3d.xy.u.nc", z0=cfg.z0_xy, slice=:xy)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.xz_u_sw
+        fname = movie_slice("swpc.3d.xz.u.nc", y0=cfg.y0_xz, slice=:xz)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.yz_u_sw
+        fname = movie_slice("swpc.3d.yz.u.nc", x0=cfg.x0_yz, slice=:yz)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+
+    cd(curdir)
+    for l in listfiles
+        println("Movie-file (*.pvd) created for: ", l)
+    end
+
     return nothing
 end

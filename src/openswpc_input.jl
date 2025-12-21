@@ -99,9 +99,14 @@ mutable struct OpenSWPCConfig
     yz_u_sw::Bool
     fs_u_sw::Bool
     ob_u_sw::Bool
+    vol_v_sw::Bool
+    vol_u_sw::Bool
+    vol_ps_sw::Bool
+
     z0_xy::Float64
     x0_yz::Float64
     y0_xz::Float64
+      
     ntdec_s::Int
     idec::Int
     jdec::Int
@@ -234,6 +239,7 @@ function OpenSWPCConfig(; kwargs...)
         xy_ps_sw = false, xz_ps_sw = true, yz_ps_sw = false, fs_ps_sw = false, ob_ps_sw = true,
         xy_v_sw = false, xz_v_sw = true, yz_v_sw = false, fs_v_sw = false, ob_v_sw = true,
         xy_u_sw = false, xz_u_sw = true, yz_u_sw = false, fs_u_sw = false, ob_u_sw = true,
+        vol_v_sw = false, vol_u_sw = false, vol_ps_sw = false,
         z0_xy = 7.0, x0_yz = 0.0, y0_xz = 0.0,
         ntdec_s = 5, idec = 2, jdec = 2, kdec = 2,
         
@@ -334,6 +340,7 @@ function OpenSWPCConfig(; kwargs...)
         cfg.xy_ps_sw, cfg.xz_ps_sw, cfg.yz_ps_sw, cfg.fs_ps_sw, cfg.ob_ps_sw,
         cfg.xy_v_sw, cfg.xz_v_sw, cfg.yz_v_sw, cfg.fs_v_sw, cfg.ob_v_sw,
         cfg.xy_u_sw, cfg.xz_u_sw, cfg.yz_u_sw, cfg.fs_u_sw, cfg.ob_u_sw,
+        cfg.vol_v_sw, cfg.vol_u_sw, cfg.vol_ps_sw,
         cfg.z0_xy, cfg.x0_yz, cfg.y0_xz,
         cfg.ntdec_s, cfg.idec, cfg.jdec, cfg.kdec,
         cfg.stations,
@@ -365,11 +372,17 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
         ("Control             ", (
             :input_file, :title, :odir, :ntdec_r, :strict_mode
         )),
-        ("Model/Grid Size/Area", (
+        ("Grid Size           ", (
             :nx, :ny, :nz,
-            :dx, :dy, :dz, :vcut,
-            :xbeg, :ybeg, :zbeg,
-            :clon, :clat, :phi, :fq_min, :fq_max, :fq_ref
+        )),
+        ("Model Domain        ", (
+            :dx, :dy, :dz, :vcut,:xbeg, :ybeg, :zbeg,
+        )),
+        ("Model Coord         ", (
+             :clon, :clat, :phi, 
+        )),
+        ("Frequency           ", (
+             :fq_min, :fq_max, :fq_ref
         )),
         ("Timestepping        ", (
             :nt,
@@ -379,13 +392,29 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
         ("Parallelisation     ", (
             :nproc_x, :nproc_y 
         )),
-        ("Snapshot Output     ", (
-            :snp_format,
-            :xy_ps_sw, :xz_ps_sw, :yz_ps_sw, :fs_ps_sw, :ob_ps_sw,
-            :xy_v_sw, :xz_v_sw, :yz_v_sw, :fs_v_sw, :ob_v_sw,
-            :xy_u_sw, :xz_u_sw, :yz_u_sw, :fs_u_sw, :ob_u_sw,
-            :z0_xy, :x0_yz, :y0_xz,
+        ("Output common       ", (
             :ntdec_s, :idec, :jdec, :kdec
+        )),
+        ("Output Free Surface ", (
+            :fs_v_sw,  :fs_u_sw, :fs_ps_sw, 
+        )),
+        ("Output Ocean Bottom ", (
+            :ob_v_sw,  :ob_u_sw, :ob_ps_sw
+        )),
+        ("Output XY Slice     ", (
+            :z0_xy, 
+            :xy_v_sw,  :xy_u_sw, :xy_ps_sw,
+        )),
+         ("Output XZ Slice     ", (
+            :y0_xz,
+            :xz_ps_sw, :xz_v_sw, :yz_v_sw
+        )),
+          ("Output YZ Slice     ", (
+            :x0_yz,
+            :yz_ps_sw, :yz_v_sw, :yz_u_sw, 
+        )),
+        ("Output 3D           ", (
+            :vol_v_sw, :vol_u_sw, :vol_ps_sw,
         )),
         #("Waveform Output     ", (
         #    :sw_wav_v, :sw_wav_u, :sw_wav_stress, :sw_wav_strain,

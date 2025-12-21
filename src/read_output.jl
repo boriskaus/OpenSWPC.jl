@@ -2,7 +2,7 @@
 # This assumes data to be saved in netcdf format
 using NCDatasets, GeophysicalModelGenerator
 
-export read_xy_slice, read_yz_slice, read_xz_slice, movie_slice
+export read_xy_slice, read_yz_slice, read_xz_slice, read_volume, movie_slice
 
  
 slice_xy(array::Array{T,2}) where T = reshape(array[:,:], size(array[:,:])...,1)
@@ -19,6 +19,8 @@ create_tuple_field_slice_xz(name::String, field::NCDatasets.CommonDataModel.CFVa
 create_tuple_field_slice_xz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}, itime) where T = NamedTuple{(Symbol(name),)}((flip_ud(slice_xz(field[:,:,itime])),))
 create_tuple_field_slice_yz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,2}) where T = NamedTuple{(Symbol(name),)}((flip_ud(slice_yz(field[:,:])),))
 create_tuple_field_slice_yz(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,3}, itime) where T = NamedTuple{(Symbol(name),)}((flip_ud(slice_yz(field[:,:,itime])),))
+
+create_tuple_field_tstep(name::String, field::NCDatasets.CommonDataModel.CFVariable{T,4}, itime) where T = NamedTuple{(Symbol(name),)}((flip_ud(field[:,:,:,itime]),))
 
 create_nt(name::String, data) = NamedTuple{(Symbol(name),)}((data,))
 remove_field(nt::NamedTuple, k::Symbol) = Base.structdiff(nt, (; k => nothing))
@@ -115,6 +117,26 @@ function read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1)
     return out, t[timestep]
 end
 
+"""
+    data, t  = read_volume(file::AbstractString; timestep::Int=1)
+extracts a y,z slides at given x0 from netcdf file
+"""
+function read_volume(file::AbstractString; timestep::Int=1)
+    @assert isnetcdf(file) "File $file is not a NetCDF file"
+    ds = NCDataset(file)
+    @assert haskey(ds, "z") "File $file does not contain variable 'z'"
+    @assert haskey(ds, "y") "File $file does not contain variable 'y'"
+    @assert haskey(ds, "x") "File $file does not contain variable 'x'"
+
+    t  = ds["t"][:]
+    fields = extract_fields_slice(ds, timestep, ("x","y","z"))
+    
+    X,Y,Z = xyz_grid(ds["x"][:], ds["y"][:], ds["z"][:]);
+    out = CartData(X,Y,flip_ud(Z), fields)  
+   
+    return out, t[timestep]
+end
+
 # extract slices and converts them in a format that GMG needs
 function extract_fields_slice(ds::NCDataset, timestep::Int, types=("x","y"))
     fields = (;)
@@ -142,7 +164,17 @@ function extract_fields_slice(ds::NCDataset, timestep::Int, types=("x","y"))
                     fields = merge(fields, create_tuple_field_slice_xz(save_name, ds[varname], timestep))
                 elseif types == ("y","z")
                     fields = merge(fields, create_tuple_field_slice_yz(save_name, ds[varname], timestep))
+                elseif types == ("x","y","z")
+                    # for 3D volume files saved as
+                    fields = merge(fields, create_tuple_field(save_name, ds[varname]))
+                else
+                    error("Unsupported variable dimension for types $types")
                 end    
+            elseif length(size(ds[varname])) == 4
+                if types == ("x","y","z")
+                    fields = merge(fields, create_tuple_field_tstep(save_name, ds[varname], timestep))
+                end
+
             end
         end
     end
@@ -188,7 +220,7 @@ end
     movie_slice(file::AbstractString; x0=0.0, y0=0,z0=0, slice=:xy)
 
 reads a OpenSWPC netcdf file and saves a movie of slices at given `x0`,`y0` or `z0`
-You need to indicate which slice you want (`:xz`,`:yz` or `:xy`)
+You need to indicate which slice you want (`:xz`,`:yz`, `:xy`, or `:xyz`)
 
 """
 function movie_slice(file::AbstractString; x0=0.0, y0=0, z0=0, slice=:xy)
@@ -211,6 +243,10 @@ function movie_slice(file::AbstractString; x0=0.0, y0=0, z0=0, slice=:xy)
             dat, _ = read_xz_slice(file,y0, timestep=itime)
         elseif slice == :yz 
             dat, _ = read_yz_slice(file,x0, timestep=itime)
+        elseif slice == :xyz 
+            dat, _ = read_volume(file, timestep=itime)
+        else
+            error("Unsupported slice type: $slice. Supported are :xy, :xz, :yz, :xyz")
         end
         
         name = file*".paraview"*string(itime)*".vts"
@@ -278,6 +314,18 @@ function movie_slice(cfg::OpenSWPCConfig)
     end
     if cfg.yz_u_sw
         fname = movie_slice("swpc.3d.yz.u.nc", x0=cfg.x0_yz, slice=:yz)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.vol_v_sw
+        fname = movie_slice("swpc.3d.vol.v.nc", slice=:xyz)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.vol_u_sw
+        fname = movie_slice("swpc.3d.vol.u.nc", slice=:xyz)
+        push!(listfiles, joinpath(cfg.odir,fname))
+    end
+    if cfg.vol_ps_sw
+        fname = movie_slice("swpc.3d.vol.ps.nc", slice=:xyz)
         push!(listfiles, joinpath(cfg.odir,fname))
     end
 

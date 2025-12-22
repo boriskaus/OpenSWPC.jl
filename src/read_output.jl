@@ -211,6 +211,21 @@ function extract_fields_slice(ds::NCDataset, timestep::Int, types=("x","y"))
         fields = remove_field(fields, Symbol("Uz_m"))
     end
 
+    # create displacement vectors
+    if  haskey(fields,Symbol("rot_x_1/s")) && 
+        haskey(fields,Symbol("rot_y_1/s")) &&
+        haskey(fields,Symbol("rot_z_1/s"))
+
+        Rotx = fields[Symbol("rot_x_1/s")]
+        Roty = fields[Symbol("rot_y_1/s")]
+        Rotz = fields[Symbol("rot_z_1/s")]
+
+        Rot_nt   = create_nt("rot_1/s",(Rotx,Roty,Rotz))
+        fields = merge(fields, Rot_nt)
+        fields = remove_field(fields, Symbol("rot_x_1/s"))
+        fields = remove_field(fields, Symbol("rot_y_1/s"))
+        fields = remove_field(fields, Symbol("rot_z_1/s"))
+    end
 
     return fields
 end

@@ -132,7 +132,7 @@ function read_volume(file::AbstractString; timestep::Int=1)
     fields = extract_fields_slice(ds, timestep, ("x","y","z"))
     
     X,Y,Z = xyz_grid(ds["x"][:], ds["y"][:], ds["z"][:]);
-    out = CartData(X,Y,flip_ud(Z), fields)  
+    out = CartData(X,Y,-flip_ud(Z), fields)  
    
     return out, t[timestep]
 end

@@ -947,7 +947,7 @@ version = "3.5.4+0"
 
 [[deps.OpenSWPC_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "NetCDFF_jll", "NetCDF_jll", "OpenMPI_jll", "TOML"]
-git-tree-sha1 = "658655af82ed422aa1f3148776a5e6d76d464340"
+git-tree-sha1 = "b94018dbc09057369f612980f1edcdaef138c794"
 repo-rev = "main"
 repo-url = "https://github.com/boriskaus/OpenSWPC_jll.jl"
 uuid = "97e963f0-2dee-5a96-a601-8cee97e19b5a"

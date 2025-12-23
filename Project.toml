@@ -10,3 +10,6 @@ NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
 OpenSWPC_jll = "97e963f0-2dee-5a96-a601-8cee97e19b5a"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+OpenSWPC_jll = "25.5.2"

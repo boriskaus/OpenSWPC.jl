@@ -17,7 +17,7 @@ stations = [
 ]
 
 # Specify model
-cfg = OpenSWPCConfig(   odir="cf_swp_layers",
+cfg = OpenSWPCConfig(   odir="cf_swp_layers_1",
                         nx = 128,   ny=128,  nz=128,
                         dx = 0.095, dy=0.095,dz=0.095,   
                         xbeg=-5,ybeg=-5,zbeg=-3.0,tbeg=0.0,
@@ -31,13 +31,14 @@ cfg = OpenSWPCConfig(   odir="cf_swp_layers",
 run_swpc(cfg)
 
 # Read some output back
-name = joinpath(@__DIR__, "cf_swp_layers", "swpc.3d.xz.v.nc")
+name = joinpath(@__DIR__, "cf_swp_layers_1", "swpc.3d.xz.v.nc")
 dat,t= read_xz_slice(name,timestep=100)
 V    = dat.fields.var"V_m/s"
 
 
 @test all(extrema(V[2]) .≈ (-0.014120221f0, 0.017427806f0))
 
-clean(cfg)
+#clean(cfg)
 
 # --------------------------------------------------------------------
+

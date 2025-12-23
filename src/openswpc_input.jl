@@ -720,11 +720,11 @@ function OpenSWPCConfig(input_model::CartData; kwargs...)
     @assert haskey(input_model.fields, :mu) "CartData must have field 'mu'"
     @assert haskey(input_model.fields, :lambda) "CartData must have field 'lambda'"
 
-    return OpenSWPCConfig(
+    return OpenSWPCConfig(;
         nx=nx, ny=ny, nz=nz,
         dx=dx, dy=dy, dz=dz,
         xbeg=xbeg, ybeg=ybeg, zbeg=zbeg,
-        vmodel=vmodel;
+        vmodel=vmodel,
         kwargs...
     )
 end

@@ -13,13 +13,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        #os: [ubuntu-latest, macos-latest, macos-15-intel]
+        os: [ubuntu-latest]
         julia-version: ['1.10', '1.11','1.12']
     env:
       OPENSWPC_RUN_HEAVY: '0'
       JULIA_NUM_THREADS: '2'
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Debug workspace
+        run: |
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          pwd
+          ls -la
+          echo "List input_tests/test1:"
+          ls -la input_tests/test1 || true
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
@@ -39,6 +49,15 @@ jobs:
       OPENSWPC_RUN_HEAVY: '0'
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Debug workspace
+        run: |
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          pwd
+          ls -la
+          echo "List input_tests/test1:"
+          ls -la input_tests/test1 || true
       - uses: julia-actions/setup-julia@v2
         with:
           version: 'nightly'

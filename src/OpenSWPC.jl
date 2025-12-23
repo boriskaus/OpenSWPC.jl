@@ -1,5 +1,9 @@
 module OpenSWPC
 
+using Pkg; 
+Pkg.add(url="https://github.com/boriskaus/OpenSWPC_jll.jl"); 
+using OpenSWPC_jll
+
 using OpenSWPC_jll 
 import MPI
 

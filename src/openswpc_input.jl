@@ -712,7 +712,7 @@ function OpenSWPCConfig(input_model::CartData; kwargs...)
     dz = input_model.z.val[2,2,2]-input_model.z.val[1,1,1]
     xbeg = minimum(input_model.x.val)   
     ybeg = minimum(input_model.y.val)
-    zbeg = minimum(input_model.z.val)
+    zbeg = -maximum(input_model.z.val)      # coordinates are flipped
     vmodel = FullVelocityModel(input_model)
     @assert haskey(input_model.fields, :Qp) "CartData must have field 'Qp'"
     @assert haskey(input_model.fields, :Qs) "CartData must have field 'Qs'"

@@ -56,7 +56,7 @@ run_swpc(cfg)
 # Read some output back
 dat,t=read_volume("cf_swp_layers/swpc.3d.vol.v.nc",timestep=100)
 V = dat.fields.var"V_m/s"
-@test all(extrema(V[2]) .≈ (-0.009220209f0, 0.008867903f0))
+@test all(extrema(V[2]) .≈ (-0.01353881f0, 0.018791912f0))
 
-#clean(cfg)
+clean(cfg)
 

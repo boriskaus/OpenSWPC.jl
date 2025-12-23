@@ -19,5 +19,5 @@ Base.convert(::Type{AbstractVelocityModel}, vmod::CartData) = FullVelocityModel(
 
 function Base.show(io::IO, ::MIME"text/plain", m::FullVelocityModel)
     print(io, "FullVelocityModel(")
-    print(io, "3D CartDat velocity model, size=", size(m.data), ", fields=", keys(m.data.fields),")")
+    print(io, "3D CartData velocity model, size=", size(m.data), ", fields=", keys(m.data.fields),")")
 end

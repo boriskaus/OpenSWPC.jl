@@ -17,7 +17,7 @@ jobs:
         os: [windows-latest]
         julia-version: ['1.10', '1.11','1.12']
     env:
-      OPENSWPC_RUN_HEAVY: '0'
+      OPENSWPC_RUN_HEAVY: '1'
       JULIA_NUM_THREADS: '2'
     steps:
       - uses: actions/checkout@v4

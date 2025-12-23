@@ -7,6 +7,7 @@ using OpenSWPC
 @testset "sourceCF read/write" begin
     # 1) Read sample llmwdc file
     sample = joinpath(@__DIR__, "..", "input_tests", "test1", "sourceCF.dat")
+    @show sample pwd()
     @test isfile(sample)
     sources = read_sourceCF(sample; format=:auto)
     @test length(sources) >= 1

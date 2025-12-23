@@ -1,8 +1,5 @@
 
-# Import the abstract source type from the sibling module within the parent package
-#using ..OpenSWPCSource: AbstractSource, write_sourceCF!
-#using ..OpenSWPC: AbstractVelocityModel, UniformVelocityModel
-
+using GeophysicalModelGenerator
 export OpenSWPCConfig, write_input!, clean
 
 """
@@ -698,4 +695,36 @@ function clean(cfg::OpenSWPCConfig)
     rm(cfg.fn_lhm, force=true)
     rm(cfg.fn_stloc, force=true)   
     return nothing
+end
+
+
+
+
+"""
+    OpenSWPCConfig(input_model::CartData; kwargs...)
+
+Generates an input model from a GMG CartData object.
+"""
+function OpenSWPCConfig(input_model::CartData; kwargs...)
+    nx, ny, nz = size(input_model)
+    dx = input_model.x.val[2,2,2]-input_model.x.val[1,1,1]
+    dy = input_model.y.val[2,2,2]-input_model.y.val[1,1,1]
+    dz = input_model.z.val[2,2,2]-input_model.z.val[1,1,1]
+    xbeg = minimum(input_model.x.val)   
+    ybeg = minimum(input_model.y.val)
+    zbeg = minimum(input_model.z.val)
+    vmodel = FullVelocityModel(input_model)
+    @assert haskey(input_model.fields, :Qp) "CartData must have field 'Qp'"
+    @assert haskey(input_model.fields, :Qs) "CartData must have field 'Qs'"
+    @assert haskey(input_model.fields, :rho) "CartData must have field 'rho'"
+    @assert haskey(input_model.fields, :mu) "CartData must have field 'mu'"
+    @assert haskey(input_model.fields, :lambda) "CartData must have field 'lambda'"
+
+    return OpenSWPCConfig(
+        nx=nx, ny=ny, nz=nz,
+        dx=dx, dy=dy, dz=dz,
+        xbeg=xbeg, ybeg=ybeg, zbeg=zbeg,
+        vmodel=vmodel;
+        kwargs...
+    )
 end

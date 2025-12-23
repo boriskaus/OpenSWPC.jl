@@ -31,10 +31,12 @@ cfg = OpenSWPCConfig(   odir="cf_swp_layers",
 run_swpc(cfg)
 
 # Read some output back
-dat,t=read_volume("cf_swp_layers/swpc.3d.vol.v.nc",timestep=100)
-V = dat.fields.var"V_m/s"
+name = joinpath(@__DIR__, "cf_swp_layers", "swpc.3d.xz.v.nc")
+dat,t= read_xz_slice(name,timestep=100)
+V    = dat.fields.var"V_m/s"
 
-@test all(extrema(V[2]) .≈ (-0.013478068f0, 0.018599335f0))
+
+@test all(extrema(V[2]) .≈ (-0.014120221f0, 0.017427806f0))
 
 clean(cfg)
 

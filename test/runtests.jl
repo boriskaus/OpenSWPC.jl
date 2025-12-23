@@ -46,14 +46,9 @@ using OpenSWPC
     @test occursin("format 'xymwdc'", txtxy)
 end
 
-
-if get(ENV, "OPENSWPC_RUN_HEAVY", "0") == "1"
-    @testset "3D layered model" begin
-        include(joinpath(@__DIR__, "test_3D_1.jl"))
-    end
-    @testset "3D mode with CartData input" begin
-        include(joinpath(@__DIR__, "test_3D_2.jl"))
-    end
-else
-    @info "Skipping heavy 3D tests (set OPENSWPC_RUN_HEAVY=1 to enable)"
+@testset "3D layered model" begin
+    include(joinpath(@__DIR__, "test_3D_1.jl"))
+end
+@testset "3D mode with CartData input" begin
+    include(joinpath(@__DIR__, "test_3D_2.jl"))
 end

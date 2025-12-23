@@ -23,13 +23,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
-      - name: Debug workspace
-        run: |
-          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
-          pwd
-          ls -la
-          echo "List input_tests/test1:"
-          ls -la input_tests/test1 || true
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}

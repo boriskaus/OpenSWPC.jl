@@ -3,10 +3,9 @@ using GeophysicalModelGenerator
 using OpenSWPC
 
 #using .OpenSWPC
-#=
 @testset "sourceCF read/write" begin
     # 1) Read sample llmwdc file
-    sample = joinpath(@__DIR__, "input_tests", "test1", "sourceCF.dat")
+    sample = joinpath(@__DIR__, "input_tests", "sourceCF.dat")
     @show sample pwd()
     @test isfile(sample)
     sources = read_sourceCF(sample; format=:auto)
@@ -14,7 +13,7 @@ using OpenSWPC
     s = sources[1]
     @test s isa SourceLLMWDC
     @test isapprox(s.lon, 14.1338; atol=1e-4)
-    @test isapprox(s.lat, 40.826221; atol=1e-6)
+    @test isapprox(s.lat, 40.8262; atol=1e-6)
     @test isapprox(s.z, 1.879; atol=1e-6)
     @test isapprox(s.tbeg, 0.1; atol=1e-6)
     @test isapprox(s.trise, 4.0; atol=1e-6)
@@ -46,7 +45,7 @@ using OpenSWPC
     txtxy = read(tmpxy, String)
     @test occursin("format 'xymwdc'", txtxy)
 end
-=#
+
 
 if get(ENV, "OPENSWPC_RUN_HEAVY", "0") == "1"
     @testset "3D layered model" begin

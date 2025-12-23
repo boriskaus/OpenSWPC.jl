@@ -13,8 +13,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #os: [ubuntu-latest, macos-latest, macos-15-intel]
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest, macos-15-intel]
+        #os: [ubuntu-latest]
         julia-version: ['1.10', '1.11','1.12']
     env:
       OPENSWPC_RUN_HEAVY: '0'

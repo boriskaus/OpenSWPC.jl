@@ -1,3 +1,5 @@
+[![CI](https://github.com/boriskaus/OpenSWPC.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/boriskaus/OpenSWPC.jl/actions/workflows/ci.yml)
+
 # OpenSWPC.jl 
 
 `OpenSWPC.jl` is a julia interface to the [OpenSWPC code](https://openswpc.github.io), a MPI-parallel finite difference code to simulate seismic wave propagation developed by Takuto Maeda.
@@ -14,7 +16,10 @@ pkg> add https://github.com/boriskaus/OpenSWPC.jl
 pkg> instantiate
 pkg> test OpenSWPC
 ```
-Note that both `OpenSWPC.jl` and `OpenSWPC_jll` (the precompiled binaries) are not yet registered, which is why the `instantiate` is necessary 
+Note that both `OpenSWPC.jl` and `OpenSWPC_jll` (the precompiled binaries) are not yet registered, which is why the `instantiate` is necessary.
+
+Also note that it only works on linux and mac. Windows users can install WSL and install julia in there to use the linux version of this code.
+
 
 ### 2. Example of using it
 

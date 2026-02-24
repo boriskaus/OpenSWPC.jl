@@ -13,6 +13,7 @@ Installing and testing the code is easy: Install julia (version 1.10 or newer) a
 ```julia
 julia>]
 pkg> add https://github.com/boriskaus/OpenSWPC.jl
+pkg> add https://github.com/boriskaus/OpenSWPC_jll.jl
 pkg> instantiate
 pkg> test OpenSWPC
 ```

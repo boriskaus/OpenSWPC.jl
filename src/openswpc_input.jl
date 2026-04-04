@@ -110,7 +110,7 @@ mutable struct OpenSWPCConfig
     kdec::Int
 
     # Waveform Output
-    stations::Vector{StationLL} 
+    stations::Vector{<:AbstractStation}
     sw_wav_v::Bool
     sw_wav_u::Bool
     sw_wav_stress::Bool
@@ -241,7 +241,7 @@ function OpenSWPCConfig(; kwargs...)
         ntdec_s = 5, idec = 2, jdec = 2, kdec = 2,
         
         # Waveform Output
-        stations = StationLL[],
+        stations = AbstractStation[],
         sw_wav_v = true, sw_wav_u = false, sw_wav_stress = false, sw_wav_strain = false,
         ntdec_w = 5, st_format = "ll", fn_stloc = "stations.ll",
         wav_format = "sac", ntdec_w_prg = 0,
@@ -324,6 +324,16 @@ function OpenSWPCConfig(; kwargs...)
     elseif eltype(cfg.source)==SourceXYMWDC
         stf_format = "xymwdc"
         cfg = merge(cfg, (; stf_format))
+    end
+
+    if eltype(cfg.stations) == StationXY
+        st_format = "xy"
+        fn_stloc  = "stations.xy"
+        cfg = merge(cfg, (; st_format, fn_stloc))
+    elseif eltype(cfg.stations) == StationLL
+        st_format = "ll"
+        fn_stloc  = "stations.ll"
+        cfg = merge(cfg, (; st_format, fn_stloc))
     end
 
 
@@ -679,7 +689,11 @@ function write_input!(cfg::OpenSWPCConfig)
     end
 
     if !isempty(cfg.stations)
-        write_stations_ll!(cfg.fn_stloc, cfg.stations)
+        if eltype(cfg.stations) == StationXY
+            write_stations_xy!(cfg.fn_stloc, cfg.stations)
+        else
+            write_stations_ll!(cfg.fn_stloc, cfg.stations)
+        end
     end
 
 

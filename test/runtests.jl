@@ -46,6 +46,39 @@ using OpenSWPC
     @test occursin("format 'xymwdc'", txtxy)
 end
 
+@testset "StationXY read/write" begin
+    stations = [
+        StationXY(10.5, 20.3, 0.5, "ST01", "dep"),
+        StationXY(15.0, 25.0, 1.0, "ST02", "obb"),
+    ]
+
+    # write and check file exists
+    tmp = tempname() * ".xy"
+    write_stations_xy!(tmp, stations)
+    @test isfile(tmp)
+
+    # check format keyword in header
+    txt = read(tmp, String)
+    @test occursin("stloc.xy", txt)
+    @test occursin("Cartesian", txt)
+
+    # check all station values appear in file
+    @test occursin("ST01", txt)
+    @test occursin("ST02", txt)
+    @test occursin("10.5000", txt)
+    @test occursin("'dep'", txt)
+    @test occursin("'obb'", txt)
+
+    # single-station convenience form
+    tmp2 = tempname() * ".xy"
+    write_stations_xy!(tmp2, StationXY(0.0, 0.0, 0.0, "S1", "fsb"))
+    @test isfile(tmp2)
+    @test occursin("S1", read(tmp2, String))
+
+    rm(tmp, force=true)
+    rm(tmp2, force=true)
+end
+
 @testset "3D layered model" begin
     include(joinpath(@__DIR__, "test_3D_1.jl"))
 end

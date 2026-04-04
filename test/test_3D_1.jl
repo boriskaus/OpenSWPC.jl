@@ -11,6 +11,7 @@ m = LHMModel([Layer1D(0;   rho=2.0, vp=1.2, vs=0.8, qp=50, qs=30),
 
 s1 = SourceLLMWDC( 14.1338, 40.826221,  1.879,  0.1,    4,   3.9, 243.3627, 31.597,  -73.886 )
 
+# station locations where seismograms will be recorded
 stations = [
     StationLL(14.1420, 40.8201, 0.170, "CAAM", "dep"),
     StationLL(14.1493, 40.8294, 0.110, "CSTH", "oba"),
@@ -25,6 +26,10 @@ cfg = OpenSWPCConfig(   odir="cf_swp_layers_1",
                         clon = 14.14, clat = 40.83,
                         xy_ps_sw=true,xz_ps_sw=true,yz_ps_sw=true,
                         z0_xy=2.5,stftype="triangle", ntdec_s=1,
+                        
+                        # waveform output
+                        sw_wav_u=true,sw_wav_v=false,  st_format = "ll", ntdec_w=1,
+
                         vmodel=m, source=[s1], stations=stations)
 
 # Run model

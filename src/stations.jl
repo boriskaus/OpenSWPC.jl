@@ -1,7 +1,8 @@
-export StationLL, write_stations_ll!
+export AbstractStation, StationLL, write_stations_ll!, StationXY, write_stations_xy!
 
 using Printf
 
+abstract type AbstractStation end
 
 """
     StationLL(lon, lat, dep, stnm, zsw)
@@ -12,7 +13,7 @@ Station location in geographic coordinates (lon/lat) with depth and placement mo
 - `stnm`: station code/name
 - `zsw`: placement mode, one of `dep`, `fsb`, `obb`, `oba`, `bd0`..`bd9`
 """
-struct StationLL
+struct StationLL <: AbstractStation
     lon::Float64
     lat::Float64
     dep::Float64
@@ -64,3 +65,62 @@ function write_stations_ll!(path::AbstractString, stations)
     return nothing
 end
 
+"""
+    StationXY(x, y, dep, stnm, zsw)
+
+Station location in Cartesian coordinates (x/y) with depth and placement mode.
+- `x`, `y`: horizontal coordinates (km)
+- `dep`: depth (km; positive down)
+- `stnm`: station code/name
+- `zsw`: placement mode, one of `dep`, `fsb`, `obb`, `oba`, `bd0`..`bd9`
+"""
+struct StationXY <: AbstractStation
+    x::Float64
+    y::Float64
+    dep::Float64
+    stnm::String
+    zsw::String
+end
+
+function Base.show(io::IO, ::MIME"text/plain", s::StationXY)
+    print(io, "                         StationXY(")
+    print(io, "stnm=", s.stnm, ", x=", _num(s.x), ", y=", _num(s.y), ", dep=", _num(s.dep), " km, zsw=", s.zsw)
+    print(io, ")")
+end
+
+"""
+    write_stations_xy!(path::AbstractString, stations)
+
+Write a `station.xy`-style file with the `xy` format header. Accepts a single
+`StationXY` or a vector of them.
+"""
+function write_stations_xy!(path::AbstractString, stations)
+    if stations isa StationXY
+        return write_stations_xy!(path, [stations])
+    elseif !(stations isa AbstractVector) || isempty(stations)
+        error("Provide a StationXY or a non-empty vector of StationXY")
+    end
+    all(st -> st isa StationXY, stations) || error("All entries must be StationXY")
+
+    open(path, "w") do io
+        println(io, "#                                                    -*- mode:sh -*-")
+        println(io, "# stloc.xy")
+        println(io)
+        println(io, "# station location data by Cartesian format. ")
+        println(io, "# lines starting from '#' and blank lines are omitted. ")
+        println(io, "#")
+        println(io, "# zsw: controls station depth")
+        println(io, "#      'dep': use the depth")
+        println(io, "#      'fsb': locate one-grid below from the free surface/sea surface")
+        println(io, "#      'obb': locate one-grid below from the groud surface/seafloor")
+        println(io, "#      'oba': locate one-grid above from the groud surface/seafloor")
+        println(io, "#      'bd{i}' (i=0,...,9) i-th boundary interface")
+        println(io, "#")
+        println(io, "#       x          y      dep     stnm   zsw")
+        println(io, "# --------------------------------------")
+        for s in stations
+            println(io, @sprintf(" %-10.4f %-10.4f %-6.3f   %-4s   %s", s.x, s.y, s.dep, s.stnm, _qs(s.zsw)))
+        end
+    end
+    return nothing
+end

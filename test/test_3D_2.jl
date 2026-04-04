@@ -33,8 +33,8 @@ vmod = addfield(vmod,(;rho,Qp,Qs,mu,lambda, vp, vs))
 s1 = SourceLLMWDC( 14.1338, 40.826221,  1.879,  0.1,    4,   3.9, 243.3627, 31.597,  -73.886 )
 
 stations = [
-    StationLL(14.1420, 40.8201, 0.170, "CAAM", "dep"),
-    StationLL(14.1493, 40.8294, 0.110, "CSTH", "oba"),
+    StationXY( 0.8,  -0.3, 0.170, "CAAM", "dep"),
+    StationXY( 1.5,   0.5, 0.110, "CSTH", "oba"),
 ]
 
 # Specify model

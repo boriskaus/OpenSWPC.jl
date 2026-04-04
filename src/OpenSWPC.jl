@@ -21,6 +21,7 @@ else
     const mpiexec = nothing
     const MPI_LIBPATH = Ref{String}("")
 end
+@info "Using mpiexec: $(mpiexec)"
 
 if Sys.iswindows()
     pathsep = ';'
@@ -36,9 +37,9 @@ include("utils.jl")
 include("source_cf.jl")
 export AbstractSource, SourceLLMWDC, SourceXYMWDC, write_sourceCF!, read_sourceCF
 
-# Station locations (station.ll)
+# Station locations (station.ll / station.xy)
 include("stations.jl")
-export StationLL, write_stations_ll!
+export AbstractStation, StationLL, write_stations_ll!, StationXY, write_stations_xy!
 
 # Velocity models --------------------------------
 abstract type AbstractVelocityModel end

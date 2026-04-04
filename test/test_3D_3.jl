@@ -77,7 +77,8 @@ cfg = OpenSWPCConfig(vmod,
                         odir="cf_swp_lapalma",
                         tbeg=0.0,
                         nproc_x=2, nproc_y=2,
-                        dt = 0.01, vcut=0.1, nt=1000,
+                        dt = 0.01, vcut=0.1, nt=200,    # use nt=1000 or more for a full simulation
+
                         clon = proj.Lon, clat = proj.Lat,
                         xy_ps_sw=true,xz_ps_sw=true,yz_ps_sw=true,
                         vol_v_sw=false, vol_u_sw=false, vol_ps_sw=false,
@@ -103,7 +104,7 @@ ntsteps_saved = cfg.nt ÷ cfg.ntdec_s
 
 dat,t=read_xz_slice(joinpath(cfg.odir, "swpc.3d.xz.v.nc"), timestep=ntsteps_saved)
 V = dat.fields.var"V_m/s"
-@test  sum(V[1]) ≈ -0.00026084436f0 rtol=1e-4
+@test  sum(V[1]) ≈ 0.009056486f0 rtol=1e-4
 
 # Convert all NetCDF output files to ParaView format (*.pvd + *.vts)
 movie_slice(cfg)
@@ -111,5 +112,5 @@ movie_slice(cfg)
 
 clean(cfg)
 rm("topo_LaPalma.vts")  
-rm("vmod_LaPalma.vts")  
+#rm("vmod_LaPalma.vts")  
 

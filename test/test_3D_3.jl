@@ -108,9 +108,8 @@ V = dat.fields.var"V_m/s"
 # Convert all NetCDF output files to ParaView format (*.pvd + *.vts)
 movie_slice(cfg)
 
-#=
+
 clean(cfg)
 rm("topo_LaPalma.vts")  
 rm("vmod_LaPalma.vts")  
-=#
 

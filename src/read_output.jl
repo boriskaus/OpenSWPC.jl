@@ -287,61 +287,56 @@ function movie_slice(cfg::OpenSWPCConfig)
     cd(cfg.odir)
 
     listfiles = String[]
+    function maybe_movie(fname::AbstractString; kwargs...)
+        if isfile(fname)
+            m = movie_slice(fname; kwargs...)
+            push!(listfiles, joinpath(cfg.odir, m))
+        else
+            println("Skipping missing file: ", fname)
+        end
+    end
+
     if cfg.xy_ps_sw
-        fname = movie_slice("swpc.3d.xy.ps.nc", z0=cfg.z0_xy, slice=:xy)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.xy.ps.nc"; z0=cfg.z0_xy, slice=:xy)
     end
     if cfg.xz_ps_sw
-        fname = movie_slice("swpc.3d.xz.ps.nc", y0=cfg.y0_xz, slice=:xz)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.xz.ps.nc"; y0=cfg.y0_xz, slice=:xz)
     end
     if cfg.yz_ps_sw
-        fname = movie_slice("swpc.3d.yz.ps.nc", x0=cfg.x0_yz, slice=:yz)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.yz.ps.nc"; x0=cfg.x0_yz, slice=:yz)
     end
     if cfg.fs_ps_sw
-        fname = movie_slice("swpc.3d.fs.ps.nc", slice=:xy)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.fs.ps.nc"; slice=:xy)
     end
     if cfg.ob_ps_sw
-        fname = movie_slice("swpc.3d.ob.ps.nc", slice=:xy)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.ob.ps.nc"; slice=:xy)
     end
     if cfg.xy_v_sw
-        fname = movie_slice("swpc.3d.xy.v.nc", z0=cfg.z0_xy, slice=:xy)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.xy.v.nc"; z0=cfg.z0_xy, slice=:xy)
     end
     if cfg.xz_v_sw
-        fname = movie_slice("swpc.3d.xz.v.nc", y0=cfg.y0_xz, slice=:xz)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.xz.v.nc"; y0=cfg.y0_xz, slice=:xz)
     end
     if cfg.yz_v_sw
-        fname = movie_slice("swpc.3d.yz.v.nc", x0=cfg.x0_yz, slice=:yz)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.yz.v.nc"; x0=cfg.x0_yz, slice=:yz)
     end
     if cfg.xy_u_sw
-        fname = movie_slice("swpc.3d.xy.u.nc", z0=cfg.z0_xy, slice=:xy)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.xy.u.nc"; z0=cfg.z0_xy, slice=:xy)
     end
     if cfg.xz_u_sw
-        fname = movie_slice("swpc.3d.xz.u.nc", y0=cfg.y0_xz, slice=:xz)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.xz.u.nc"; y0=cfg.y0_xz, slice=:xz)
     end
     if cfg.yz_u_sw
-        fname = movie_slice("swpc.3d.yz.u.nc", x0=cfg.x0_yz, slice=:yz)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.yz.u.nc"; x0=cfg.x0_yz, slice=:yz)
     end
     if cfg.vol_v_sw
-        fname = movie_slice("swpc.3d.vol.v.nc", slice=:xyz)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.vol.v.nc"; slice=:xyz)
     end
     if cfg.vol_u_sw
-        fname = movie_slice("swpc.3d.vol.u.nc", slice=:xyz)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.vol.u.nc"; slice=:xyz)
     end
     if cfg.vol_ps_sw
-        fname = movie_slice("swpc.3d.vol.ps.nc", slice=:xyz)
-        push!(listfiles, joinpath(cfg.odir,fname))
+        maybe_movie("swpc.3d.vol.ps.nc"; slice=:xyz)
     end
 
     cd(curdir)

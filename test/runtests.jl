@@ -82,6 +82,9 @@ end
 @testset "3D layered model" begin
     include(joinpath(@__DIR__, "test_3D_1.jl"))
 end
-@testset "3D mode with CartData input" begin
+@testset "3D model with CartData input" begin
     include(joinpath(@__DIR__, "test_3D_2.jl"))
+end
+@testset "3D model with topography input" begin
+    include(joinpath(@__DIR__, "test_3D_3.jl"))
 end

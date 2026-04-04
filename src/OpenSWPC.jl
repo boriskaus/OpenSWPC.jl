@@ -21,7 +21,6 @@ else
     const mpiexec = nothing
     const MPI_LIBPATH = Ref{String}("")
 end
-@info "Using mpiexec: $(mpiexec)"
 
 if Sys.iswindows()
     pathsep = ';'

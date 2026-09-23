@@ -380,16 +380,18 @@ Compact REPL printing that includes all parameters, grouped by section.
 """
 function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
     n = (cfg.nx, cfg.ny, cfg.nz)
+    is3d = cfg.solver == "3d"
+    xz_2d = cfg.solver == "psv" ? (:xz_ps_sw, :xz_v_sw, :xz_u_sw) : (:xz_v_sw, :xz_u_sw)
     sections = [
         ("Control             ", (
             :input_file, :title, :odir, :ntdec_r, :strict_mode, :solver
         )),
-        ("Grid Size           ", (
+        ("Grid Size           ", is3d ? (
             :nx, :ny, :nz,
-        )),
-        ("Model Domain        ", (
+        ) : (:nx, :nz)),
+        ("Model Domain        ", is3d ? (
             :dx, :dy, :dz, :vcut,:xbeg, :ybeg, :zbeg,
-        )),
+        ) : (:dx, :dz, :vcut, :xbeg, :zbeg)),
         ("Model Coord         ", (
              :clon, :clat, :phi, 
         )),
@@ -401,33 +403,33 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
             :dt,
             :tbeg,
         )),
-        ("Parallelisation     ", (
+        ("Parallelisation     ", is3d ? (
             :nproc_x, :nproc_y 
-        )),
-        ("Output common       ", (
+        ) : (:nproc_x,)),
+        ("Output common       ", is3d ? (
             :ntdec_s, :idec, :jdec, :kdec
-        )),
-        ("Output Free Surface ", (
+        ) : (:ntdec_s, :idec, :kdec)),
+        ("Output Free Surface ", is3d ? (
             :fs_v_sw,  :fs_u_sw, :fs_ps_sw, 
-        )),
-        ("Output Ocean Bottom ", (
+        ) : ()),
+        ("Output Ocean Bottom ", is3d ? (
             :ob_v_sw,  :ob_u_sw, :ob_ps_sw
-        )),
-        ("Output XY Slice     ", (
+        ) : ()),
+        ("Output XY Slice     ", is3d ? (
             :z0_xy, 
             :xy_v_sw,  :xy_u_sw, :xy_ps_sw,
-        )),
-         ("Output XZ Slice     ", (
+        ) : ()),
+         ("Output XZ Slice     ", is3d ? (
             :y0_xz,
             :xz_ps_sw, :xz_v_sw, :yz_v_sw
-        )),
-          ("Output YZ Slice     ", (
+        ) : xz_2d),
+          ("Output YZ Slice     ", is3d ? (
             :x0_yz,
             :yz_ps_sw, :yz_v_sw, :yz_u_sw, 
-        )),
-        ("Output 3D           ", (
+        ) : ()),
+        ("Output 3D           ", is3d ? (
             :vol_v_sw, :vol_u_sw, :vol_ps_sw,
-        )),
+        ) : ()),
         #("Waveform Output     ", (
         #    :sw_wav_v, :sw_wav_u, :sw_wav_stress, :sw_wav_strain,
         #    :ntdec_w, :st_format, :fn_stloc, :wav_format, :ntdec_w_prg
@@ -476,6 +478,7 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
     for (section, fields) in sections
         items = String[]
         flist = fields isa Tuple ? fields : (fields,)
+        isempty(flist) && continue
         for f in flist
             val = getfield(cfg, f)
             push!(items, string(f, "=", repr(val)))

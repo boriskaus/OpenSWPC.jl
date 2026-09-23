@@ -4,14 +4,16 @@ export read_netcdf, write_netcdf
 """
     data = read_netcdf(ncfile::String; xbeg=0.0, ybeg=0.0, zbeg=0.0)
 
-Reads a 3D NetCDF file used in OpenSWPC and returns a `CartData` object.
+Reads a 2D or 3D NetCDF file used in OpenSWPC and returns a `CartData` object.
 Note that the z-coordinates are flipped to match the depth convention in GMG (positive up).
+A 2D file (dimensions `x`, `z`) is returned as a `CartData` of size `(nx, 1, nz)` with `y = ybeg`.
 """
 function read_netcdf(ncfile::String; xbeg=0.0, ybeg=0.0, zbeg=0.0)
     ds = NCDataset(ncfile)
+    is2d = !haskey(ds.dim, "y")
     
     x = ds["x"][:] .+ xbeg
-    y = ds["y"][:] .+ ybeg
+    y = is2d ? [ybeg] : ds["y"][:] .+ ybeg
     z = ds["z"][:] .+ zbeg
 
     field_names = keys(ds)
@@ -19,7 +21,9 @@ function read_netcdf(ncfile::String; xbeg=0.0, ybeg=0.0, zbeg=0.0)
 
     fields = (;)
     for varname in field_names
-        fields = merge(fields, OpenSWPC.create_tuple_field(varname, ds[varname]))
+        field = OpenSWPC.create_tuple_field(varname, ds[varname])
+        is2d && (field = map(f -> reshape(f, length(x), 1, length(z)), field))
+        fields = merge(fields, field)
     end
     X,Y,Z = xyz_grid(x,y,-OpenSWPC.flip_ud(z));
 
@@ -29,7 +33,7 @@ end
 
 """
     data = read_netcdf(ncfile::String, cfg::OpenSWPC.OpenSWPCConfig)   
-Reads a 3D NetCDF file used in OpenSWPC and returns a `CartData` object, consistent with the model parameters in `cfg`.
+Reads a 2D or 3D NetCDF file used in OpenSWPC and returns a `CartData` object, consistent with the model parameters in `cfg`.
 """
 read_netcdf(ncfile::String, cfg::OpenSWPC.OpenSWPCConfig) = 
     read_netcdf(ncfile; xbeg=cfg.xbeg, ybeg=cfg.ybeg, zbeg=cfg.zbeg)

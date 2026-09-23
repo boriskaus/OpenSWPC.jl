@@ -737,8 +737,12 @@ end
 Generates an input model from a GMG CartData object.
 A CartData of size `(nx, 1, nz)` (e.g. `CartData(xyz_grid(x, 0, z))`) defines a 2D model in the x-z plane,
 which is run with the P-SV code by default; pass `solver="sh"` for the SH code.
+A vertical cross-section through a 3D model (see `to_2D`) is converted to that form first.
 """
 function OpenSWPCConfig(input_model::CartData; kwargs...)
+    if size(input_model)[1] == 1 || size(input_model)[3] == 1
+        input_model = to_2D(input_model)
+    end
     nx, ny, nz = size(input_model)
     solver = get(kwargs, :solver, ny == 1 ? "psv" : "3d")
     (ny == 1) == (solver != "3d") || error("solver=\"$solver\" does not match a CartData of size $(size(input_model))")

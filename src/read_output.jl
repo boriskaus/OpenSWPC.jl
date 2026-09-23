@@ -77,6 +77,7 @@ function read_xy_slice(file::AbstractString, depth=0.0; timestep::Int=1, cart_da
         out = CartData(X,Y,-flip_ud(Z), fields)  
     end
 
+    close(ds)
     return out, t[timestep]
 end
 
@@ -95,6 +96,7 @@ function read_xz_slice(file::AbstractString, y0=0.0; timestep::Int=1)
     X,Y,Z = xyz_grid(ds["x"][:],y0,ds["z"][:]);
     out = CartData(X,Y,-flip_ud(Z), fields)  
    
+    close(ds)
     return out, t[timestep]
 end
 
@@ -114,6 +116,7 @@ function read_yz_slice(file::AbstractString, x0=0.0; timestep::Int=1)
     X,Y,Z = xyz_grid(x0, ds["y"][:], ds["z"][:]);
     out = CartData(X,Y,flip_ud(Z), fields)  
    
+    close(ds)
     return out, t[timestep]
 end
 
@@ -134,6 +137,7 @@ function read_volume(file::AbstractString; timestep::Int=1)
     X,Y,Z = xyz_grid(ds["x"][:], ds["y"][:], ds["z"][:]);
     out = CartData(X,Y,-flip_ud(Z), fields)  
    
+    close(ds)
     return out, t[timestep]
 end
 
@@ -280,6 +284,7 @@ function movie_slice(file::AbstractString; x0=0.0, y0=0, z0=0, slice=:xy)
     movie_paraview(pvd=movie, Finalize=true);
 
     println("Movie saved to ", pvd_file)
+    close(ds)
     return pvd_file
 end
 

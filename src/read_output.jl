@@ -227,6 +227,15 @@ function extract_fields_slice(ds::NCDataset, timestep::Int, types=("x","y"))
         fields = remove_field(fields, Symbol("rot_z_1/s"))
     end
 
+    # 2D P-SV snapshots have no y-component
+    for (vec, cx, cz) in (("V_m/s", "Vx_m/s", "Vz_m/s"), ("U_m", "Ux_m", "Uz_m"))
+        if haskey(fields, Symbol(cx)) && haskey(fields, Symbol(cz))
+            X, Z   = fields[Symbol(cx)], fields[Symbol(cz)]
+            fields = remove_field(remove_field(fields, Symbol(cx)), Symbol(cz))
+            fields = merge(fields, create_nt(vec, (X, zero(X), Z)))
+        end
+    end
+
     return fields
 end
 
@@ -286,6 +295,8 @@ function movie_slice(cfg::OpenSWPCConfig)
     curdir = pwd()
     cd(cfg.odir)
 
+    pre  = "$(cfg.title).$(cfg.solver)"
+    is3d = cfg.solver == "3d"
     listfiles = String[]
     function maybe_movie(fname::AbstractString; kwargs...)
         if isfile(fname)
@@ -296,47 +307,47 @@ function movie_slice(cfg::OpenSWPCConfig)
         end
     end
 
-    if cfg.xy_ps_sw
-        maybe_movie("swpc.3d.xy.ps.nc"; z0=cfg.z0_xy, slice=:xy)
+    if is3d && cfg.xy_ps_sw
+        maybe_movie("$pre.xy.ps.nc"; z0=cfg.z0_xy, slice=:xy)
     end
-    if cfg.xz_ps_sw
-        maybe_movie("swpc.3d.xz.ps.nc"; y0=cfg.y0_xz, slice=:xz)
+    if cfg.xz_ps_sw && cfg.solver != "sh"
+        maybe_movie("$pre.xz.ps.nc"; y0=cfg.y0_xz, slice=:xz)
     end
-    if cfg.yz_ps_sw
-        maybe_movie("swpc.3d.yz.ps.nc"; x0=cfg.x0_yz, slice=:yz)
+    if is3d && cfg.yz_ps_sw
+        maybe_movie("$pre.yz.ps.nc"; x0=cfg.x0_yz, slice=:yz)
     end
-    if cfg.fs_ps_sw
-        maybe_movie("swpc.3d.fs.ps.nc"; slice=:xy)
+    if is3d && cfg.fs_ps_sw
+        maybe_movie("$pre.fs.ps.nc"; slice=:xy)
     end
-    if cfg.ob_ps_sw
-        maybe_movie("swpc.3d.ob.ps.nc"; slice=:xy)
+    if is3d && cfg.ob_ps_sw
+        maybe_movie("$pre.ob.ps.nc"; slice=:xy)
     end
-    if cfg.xy_v_sw
-        maybe_movie("swpc.3d.xy.v.nc"; z0=cfg.z0_xy, slice=:xy)
+    if is3d && cfg.xy_v_sw
+        maybe_movie("$pre.xy.v.nc"; z0=cfg.z0_xy, slice=:xy)
     end
     if cfg.xz_v_sw
-        maybe_movie("swpc.3d.xz.v.nc"; y0=cfg.y0_xz, slice=:xz)
+        maybe_movie("$pre.xz.v.nc"; y0=cfg.y0_xz, slice=:xz)
     end
-    if cfg.yz_v_sw
-        maybe_movie("swpc.3d.yz.v.nc"; x0=cfg.x0_yz, slice=:yz)
+    if is3d && cfg.yz_v_sw
+        maybe_movie("$pre.yz.v.nc"; x0=cfg.x0_yz, slice=:yz)
     end
-    if cfg.xy_u_sw
-        maybe_movie("swpc.3d.xy.u.nc"; z0=cfg.z0_xy, slice=:xy)
+    if is3d && cfg.xy_u_sw
+        maybe_movie("$pre.xy.u.nc"; z0=cfg.z0_xy, slice=:xy)
     end
     if cfg.xz_u_sw
-        maybe_movie("swpc.3d.xz.u.nc"; y0=cfg.y0_xz, slice=:xz)
+        maybe_movie("$pre.xz.u.nc"; y0=cfg.y0_xz, slice=:xz)
     end
-    if cfg.yz_u_sw
-        maybe_movie("swpc.3d.yz.u.nc"; x0=cfg.x0_yz, slice=:yz)
+    if is3d && cfg.yz_u_sw
+        maybe_movie("$pre.yz.u.nc"; x0=cfg.x0_yz, slice=:yz)
     end
-    if cfg.vol_v_sw
-        maybe_movie("swpc.3d.vol.v.nc"; slice=:xyz)
+    if is3d && cfg.vol_v_sw
+        maybe_movie("$pre.vol.v.nc"; slice=:xyz)
     end
-    if cfg.vol_u_sw
-        maybe_movie("swpc.3d.vol.u.nc"; slice=:xyz)
+    if is3d && cfg.vol_u_sw
+        maybe_movie("$pre.vol.u.nc"; slice=:xyz)
     end
-    if cfg.vol_ps_sw
-        maybe_movie("swpc.3d.vol.ps.nc"; slice=:xyz)
+    if is3d && cfg.vol_ps_sw
+        maybe_movie("$pre.vol.ps.nc"; slice=:xyz)
     end
 
     cd(curdir)

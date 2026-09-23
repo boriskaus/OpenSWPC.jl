@@ -41,11 +41,13 @@ end
 
 """
     generate_random_medium(cfg::OpenSWPCConfig; kwargs...)
-Generates a random medium consistent with the 3D model parameters in `cfg`.
+Generates a random medium consistent with the model parameters in `cfg`.
+For a 2D `cfg` the medium has `ny = 1`, so `read_netcdf` returns a `CartData` of size `(nx, 1, nz)`.
 """
-function generate_random_medium(cfg::OpenSWPCConfig, kwargs...)
-    generate_random_medium(  nx=cfg.nx, ny=cfg.ny, nz=cfg.nz,
-                                dx=cfg.dx, dy=cfg.dy, dz=cfg.dz, kwargs...)
+function generate_random_medium(cfg::OpenSWPCConfig; kwargs...)
+    ny, dy = cfg.solver == "3d" ? (cfg.ny, cfg.dy) : (1, cfg.dx)    # gen_rmed3d returns NaN for dy=0
+    generate_random_medium(  nx=cfg.nx, ny=ny, nz=cfg.nz,
+                                dx=cfg.dx, dy=dy, dz=cfg.dz; kwargs...)
 end
 
 

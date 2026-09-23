@@ -12,6 +12,8 @@ overridden via the keyword constructor `OpenSWPCConfig(; kwargs...)`.
 Sections and notable fields:
 
 - Control: `title`, `odir`, `ntdec_r`, `strict_mode`.
+- Solver: `solver` selects the executable, `"3d"` (`swpc_3d`), `"psv"` (2D P-SV, `swpc_psv`)
+    or `"sh"` (2D SH, `swpc_sh`). 2D input files only contain the parameters of the x-z plane.
 - Model/Grid Size/Area: 
     - `nx`, `ny`, `nz` : number of grid cells 
     - `dx`, `dy`, `dz`: spacing
@@ -55,6 +57,7 @@ mutable struct OpenSWPCConfig
     odir::String
     ntdec_r::Int
     strict_mode::Bool
+    solver::String
 
     # Model/Grid Size and Area
     nproc_x::Int
@@ -221,6 +224,7 @@ function OpenSWPCConfig(; kwargs...)
         odir = "./out",
         ntdec_r = 50,
         strict_mode = false,
+        solver = "3d",
         
         # Model/Grid Size and Area
         nproc_x = 2, nproc_y = 2,
@@ -293,6 +297,7 @@ function OpenSWPCConfig(; kwargs...)
 
     # Merge kwargs over defaults
     cfg = merge(NamedTuple(defaults), kwargs)
+    cfg.solver in ("3d", "psv", "sh") || error("solver must be \"3d\", \"psv\" or \"sh\"")
     if isa(cfg.vmodel, UniformVelocityModel)
         vm      = cfg.vmodel
         vmodel_type = "uni"
@@ -338,7 +343,7 @@ function OpenSWPCConfig(; kwargs...)
 
 
     return OpenSWPCConfig(cfg.input_file,
-        cfg.title, cfg.odir, cfg.ntdec_r, cfg.strict_mode,
+        cfg.title, cfg.odir, cfg.ntdec_r, cfg.strict_mode, cfg.solver,
         cfg.nproc_x, cfg.nproc_y, cfg.nx, cfg.ny, cfg.nz, cfg.nt,
         cfg.dx, cfg.dy, cfg.dz, cfg.dt, cfg.vcut,
         cfg.xbeg, cfg.ybeg, cfg.zbeg, cfg.tbeg,
@@ -375,16 +380,18 @@ Compact REPL printing that includes all parameters, grouped by section.
 """
 function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
     n = (cfg.nx, cfg.ny, cfg.nz)
+    is3d = cfg.solver == "3d"
+    xz_2d = cfg.solver == "psv" ? (:xz_ps_sw, :xz_v_sw, :xz_u_sw) : (:xz_v_sw, :xz_u_sw)
     sections = [
         ("Control             ", (
-            :input_file, :title, :odir, :ntdec_r, :strict_mode
+            :input_file, :title, :odir, :ntdec_r, :strict_mode, :solver
         )),
-        ("Grid Size           ", (
+        ("Grid Size           ", is3d ? (
             :nx, :ny, :nz,
-        )),
-        ("Model Domain        ", (
+        ) : (:nx, :nz)),
+        ("Model Domain        ", is3d ? (
             :dx, :dy, :dz, :vcut,:xbeg, :ybeg, :zbeg,
-        )),
+        ) : (:dx, :dz, :vcut, :xbeg, :zbeg)),
         ("Model Coord         ", (
              :clon, :clat, :phi, 
         )),
@@ -396,33 +403,33 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
             :dt,
             :tbeg,
         )),
-        ("Parallelisation     ", (
+        ("Parallelisation     ", is3d ? (
             :nproc_x, :nproc_y 
-        )),
-        ("Output common       ", (
+        ) : (:nproc_x,)),
+        ("Output common       ", is3d ? (
             :ntdec_s, :idec, :jdec, :kdec
-        )),
-        ("Output Free Surface ", (
+        ) : (:ntdec_s, :idec, :kdec)),
+        ("Output Free Surface ", is3d ? (
             :fs_v_sw,  :fs_u_sw, :fs_ps_sw, 
-        )),
-        ("Output Ocean Bottom ", (
+        ) : ()),
+        ("Output Ocean Bottom ", is3d ? (
             :ob_v_sw,  :ob_u_sw, :ob_ps_sw
-        )),
-        ("Output XY Slice     ", (
+        ) : ()),
+        ("Output XY Slice     ", is3d ? (
             :z0_xy, 
             :xy_v_sw,  :xy_u_sw, :xy_ps_sw,
-        )),
-         ("Output XZ Slice     ", (
+        ) : ()),
+         ("Output XZ Slice     ", is3d ? (
             :y0_xz,
             :xz_ps_sw, :xz_v_sw, :yz_v_sw
-        )),
-          ("Output YZ Slice     ", (
+        ) : xz_2d),
+          ("Output YZ Slice     ", is3d ? (
             :x0_yz,
             :yz_ps_sw, :yz_v_sw, :yz_u_sw, 
-        )),
-        ("Output 3D           ", (
+        ) : ()),
+        ("Output 3D           ", is3d ? (
             :vol_v_sw, :vol_u_sw, :vol_ps_sw,
-        )),
+        ) : ()),
         #("Waveform Output     ", (
         #    :sw_wav_v, :sw_wav_u, :sw_wav_stress, :sw_wav_strain,
         #    :ntdec_w, :st_format, :fn_stloc, :wav_format, :ntdec_w_prg
@@ -471,6 +478,7 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
     for (section, fields) in sections
         items = String[]
         flist = fields isa Tuple ? fields : (fields,)
+        isempty(flist) && continue
         for f in flist
             val = getfield(cfg, f)
             push!(items, string(f, "=", repr(val)))
@@ -505,7 +513,7 @@ function Base.show(io::IO, ::MIME"text/plain", cfg::OpenSWPCConfig)
     print(io, "                        ")
     show(io, MIME"text/plain"(), cfg.vmodel)
     println(io)
-    
+
 
 end
 
@@ -515,6 +523,7 @@ Write the OpenSWPC input file as specified in `cfg.input_file`.
 """
 function write_input!(cfg::OpenSWPCConfig)
     path=cfg.input_file
+    is3d = cfg.solver == "3d"
     open(path, "w") do io
         println(io, " !! ----------------------------------------------------------------------- !!")
         println(io, "  !!\n  !!  SWPC input file\n  !!\n !! ----------------------------------------------------------------------- !!\n")
@@ -527,18 +536,18 @@ function write_input!(cfg::OpenSWPCConfig)
 
         println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Model/Grid Size and Area\n  !!\n")
         println(io, "  nproc_x          = $(cfg.nproc_x)                !! parallelization in x-dir")
-        println(io, "  nproc_y          = $(cfg.nproc_y)                !! parallelization in y-dir")
+        is3d && println(io, "  nproc_y          = $(cfg.nproc_y)                !! parallelization in y-dir")
         println(io, "  nx               = $(cfg.nx)              !! total grid number in x-dir")
-        println(io, "  ny               = $(cfg.ny)              !! total grid number in y-dir")
+        is3d && println(io, "  ny               = $(cfg.ny)              !! total grid number in y-dir")
         println(io, "  nz               = $(cfg.nz)              !! total grid number in z-dir")
         println(io, "  nt               = $(cfg.nt)             !! time step number\n")
         println(io, "  dx               = $(cfg.dx)              !! grid width in x-dir")
-        println(io, "  dy               = $(cfg.dy)              !! grid width in y-dir")
+        is3d && println(io, "  dy               = $(cfg.dy)              !! grid width in y-dir")
         println(io, "  dz               = $(cfg.dz)              !! grid width in z-dir")
         println(io, "  dt               = $(cfg.dt)             !! time step width\n")
         println(io, "  vcut             = $(cfg.vcut)              !! minimum velocity\n                                      !- smaller velocities will be increased\n")
         println(io, "  xbeg             = $(cfg.xbeg)            !! minimum in x-dir")
-        println(io, "  ybeg             = $(cfg.ybeg)            !! minimum in y-dir")
+        is3d && println(io, "  ybeg             = $(cfg.ybeg)            !! minimum in y-dir")
         println(io, "  zbeg             = $(cfg.zbeg)            !! minimum in z-dir")
         println(io, "  tbeg             = $(cfg.tbeg)              !! start time\n")
         println(io, "  clon             = $(cfg.clon)         !! center longitude")
@@ -550,31 +559,37 @@ function write_input!(cfg::OpenSWPCConfig)
 
         println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Snapshot Output\n  !!\n")
         println(io, "  snp_format       = $( _qs(cfg.snp_format) )         !! snapshot format (netcdf)\n")
-        println(io, "  xy_ps%sw         = $( _b(cfg.xy_ps_sw) )          !! P&S amp. for xy section")
-        println(io, "  xz_ps%sw         = $( _b(cfg.xz_ps_sw) )           !! P&S amp. for xz section")
-        println(io, "  yz_ps%sw         = $( _b(cfg.yz_ps_sw) )          !! P&S amp. for yz section")
-        println(io, "  fs_ps%sw         = $( _b(cfg.fs_ps_sw) )          !! P&S amp. for free surface")
-        println(io, "  ob_ps%sw         = $( _b(cfg.ob_ps_sw) )           !! P&S amp. for ocean bottom\n")
-        println(io, "  xy_v%sw          = $( _b(cfg.xy_v_sw) )          !! 3-comp. velocity for xy section")
-        println(io, "  xz_v%sw          = $( _b(cfg.xz_v_sw) )           !! 3-comp. velocity for xz section")
-        println(io, "  yz_v%sw          = $( _b(cfg.yz_v_sw) )          !! 3-comp. velocity for yz section")
-        println(io, "  fs_v%sw          = $( _b(cfg.fs_v_sw) )          !! 3-comp. velocity for free surface")
-        println(io, "  ob_v%sw          = $( _b(cfg.ob_v_sw) )           !! 3-comp. velocity for ocean bottom\n")
-        println(io, "  xy_u%sw          = $( _b(cfg.xy_u_sw) )          !! 3-comp. disp. for xy section")
-        println(io, "  xz_u%sw          = $( _b(cfg.xz_u_sw) )           !! 3-comp. disp. for xz section")
-        println(io, "  yz_u%sw          = $( _b(cfg.yz_u_sw) )          !! 3-comp. disp. for yz section")
-        println(io, "  fs_u%sw          = $( _b(cfg.fs_u_sw) )          !! 3-comp. disp. for free surface")
-        println(io, "  ob_u%sw          = $( _b(cfg.ob_u_sw) )           !! 3-comp. disp. for ocean bottom\n")
-        println(io, "  vol_v%sw         = $( _b(cfg.vol_v_sw) )          !! 3-comp. velocity for 3D volume")
-        println(io, "  vol_u%sw         = $( _b(cfg.vol_u_sw) )          !! 3-comp. disp. for 3D volume")
-        println(io, "  vol_ps%sw        = $( _b(cfg.vol_ps_sw) )          !! P&S amp. for 3D volume\n")
+        if is3d
+            println(io, "  xy_ps%sw         = $( _b(cfg.xy_ps_sw) )          !! P&S amp. for xy section")
+            println(io, "  xz_ps%sw         = $( _b(cfg.xz_ps_sw) )           !! P&S amp. for xz section")
+            println(io, "  yz_ps%sw         = $( _b(cfg.yz_ps_sw) )          !! P&S amp. for yz section")
+            println(io, "  fs_ps%sw         = $( _b(cfg.fs_ps_sw) )          !! P&S amp. for free surface")
+            println(io, "  ob_ps%sw         = $( _b(cfg.ob_ps_sw) )           !! P&S amp. for ocean bottom\n")
+            println(io, "  xy_v%sw          = $( _b(cfg.xy_v_sw) )          !! 3-comp. velocity for xy section")
+            println(io, "  xz_v%sw          = $( _b(cfg.xz_v_sw) )           !! 3-comp. velocity for xz section")
+            println(io, "  yz_v%sw          = $( _b(cfg.yz_v_sw) )          !! 3-comp. velocity for yz section")
+            println(io, "  fs_v%sw          = $( _b(cfg.fs_v_sw) )          !! 3-comp. velocity for free surface")
+            println(io, "  ob_v%sw          = $( _b(cfg.ob_v_sw) )           !! 3-comp. velocity for ocean bottom\n")
+            println(io, "  xy_u%sw          = $( _b(cfg.xy_u_sw) )          !! 3-comp. disp. for xy section")
+            println(io, "  xz_u%sw          = $( _b(cfg.xz_u_sw) )           !! 3-comp. disp. for xz section")
+            println(io, "  yz_u%sw          = $( _b(cfg.yz_u_sw) )          !! 3-comp. disp. for yz section")
+            println(io, "  fs_u%sw          = $( _b(cfg.fs_u_sw) )          !! 3-comp. disp. for free surface")
+            println(io, "  ob_u%sw          = $( _b(cfg.ob_u_sw) )           !! 3-comp. disp. for ocean bottom\n")
+            println(io, "  vol_v%sw         = $( _b(cfg.vol_v_sw) )          !! 3-comp. velocity for 3D volume")
+            println(io, "  vol_u%sw         = $( _b(cfg.vol_u_sw) )          !! 3-comp. disp. for 3D volume")
+            println(io, "  vol_ps%sw        = $( _b(cfg.vol_ps_sw) )          !! P&S amp. for 3D volume\n")
 
-        println(io, "  z0_xy            =  $(cfg.z0_xy)             !! depth for xy cross section")
-        println(io, "  x0_yz            =  $(cfg.x0_yz)             !! x-value for yz cross section")
-        println(io, "  y0_xz            =  $(cfg.y0_xz)             !! y-value for xz cross section\n")
+            println(io, "  z0_xy            =  $(cfg.z0_xy)             !! depth for xy cross section")
+            println(io, "  x0_yz            =  $(cfg.x0_yz)             !! x-value for yz cross section")
+            println(io, "  y0_xz            =  $(cfg.y0_xz)             !! y-value for xz cross section\n")
+        else
+            cfg.solver == "psv" && println(io, "  xz_ps%sw         = $( _b(cfg.xz_ps_sw) )           !! P&S amp. for xz section")
+            println(io, "  xz_v%sw          = $( _b(cfg.xz_v_sw) )           !! velocity for xz section")
+            println(io, "  xz_u%sw          = $( _b(cfg.xz_u_sw) )           !! displacement for xz section\n")
+        end
         println(io, "  ntdec_s          = $(cfg.ntdec_s)                !! time decimation of snapshot\n                                      !- (specify 1 for no decimation)\n")
         println(io, "  idec             = $(cfg.idec)                !! x-decimation for snapshot")
-        println(io, "  jdec             = $(cfg.jdec)                !! y-decimation for snapshot")
+        is3d && println(io, "  jdec             = $(cfg.jdec)                !! y-decimation for snapshot")
         println(io, "  kdec             = $(cfg.kdec)                !! z-decimation for snapshot\n")
 
         println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Waveform Output\n  !!\n")
@@ -602,7 +617,7 @@ function write_input!(cfg::OpenSWPCConfig)
         println(io, "  pw_ps            = $( _qs(cfg.pw_ps) )       !! 'p' P-wave 's' S-wave")
         println(io, "  pw_strike        = $(cfg.pw_strike)       !! strike direction of plane wave (deg.)")
         println(io, "  pw_dip           = $(cfg.pw_dip)       !! dip of plane wave (deg.)")
-        println(io, "  pw_rake          = $(cfg.pw_rake)       !! rake of plane S-wave polarization (deg.)\n")
+        cfg.solver != "sh" && println(io, "  pw_rake          = $(cfg.pw_rake)       !! rake of plane S-wave polarization (deg.)\n")
 
         println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Absorbing Boundary Condition\n  !!\n")
         println(io, "  abc_type         = $( _qs(cfg.abc_type) )            !! 'pml' or 'cerjan'")
@@ -613,7 +628,7 @@ function write_input!(cfg::OpenSWPCConfig)
         println(io, "  vmodel_type      = $( _qs(cfg.vmodel_type) )             !! velocity model type 'uni'/'grd'/'lhm'")
         println(io, "  is_ocean         = $( _b(cfg.is_ocean) )                 !! topography z<0 is covered by ocean")
         println(io, "  topo_flatten     = $( _b(cfg.topo_flatten) )             !! Force topography variation to zero (formerly is_flatten)")
-        println(io, "  munk_profile     = $( _b(cfg.munk_profile) )             !! velocity gradient inside the seawater column")
+        cfg.solver != "sh" && println(io, "  munk_profile     = $( _b(cfg.munk_profile) )             !! velocity gradient inside the seawater column")
         println(io, "  earth_flattening = $( _b(cfg.earth_flattening) )         !! Earth-flattening tranformation\n")
 
         if cfg.vmodel_type == "uni"
@@ -629,7 +644,7 @@ function write_input!(cfg::OpenSWPCConfig)
         println(io, "   !! --------------------------------------------------------------------- !!\n    !! For GMT grid file input 'grd' ( requires netcdf library )\n    !!\n")
         println(io, "   dir_grd          = $( _qs(cfg.dir_grd) )    !! directory for grd file")
         println(io, "   fn_grdlst        = $( _qs(cfg.fn_grdlst) )            !! grd file list")
-        println(io, "   node_grd         = $(cfg.node_grd)                              !! input MPI node\n")
+        is3d && println(io, "   node_grd         = $(cfg.node_grd)                              !! input MPI node\n")
         end
         if cfg.vmodel_type == "lhm" || cfg.vmodel_type == "lgm"
         println(io, "   !! --------------------------------------------------------------------- !!\n    !! For layered homogeneous medium model ('lhm')\n    !!\n")
@@ -648,28 +663,30 @@ function write_input!(cfg::OpenSWPCConfig)
         println(io, "   rhomin           = $(cfg.rhomin)                 !! minimum density threshold")
         println(io, "   fn_rmed0         = $( _qs(cfg.fn_rmed0) )          !! vel. purturb. on a uniform media\n")
 
-        println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Checkpoint/Restart\n  !!\n")
-        println(io, "  is_ckp           = $( _b(cfg.is_ckp) )          !! perform checkpoint/restart")
-        println(io, "  ckpdir           = $( _qs(cfg.ckpdir) )      !! output directory")
-        println(io, "  ckp_interval     = $(cfg.ckp_interval)          !! interval for checkpoint check（1/cycle）")
-        println(io, "  ckp_time         = $(cfg.ckp_time)          !! checkpoint time")
-        println(io, "  ckp_seq          = $( _b(cfg.ckp_seq) )              !! sequential output mode\n")
+        if is3d
+            println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Checkpoint/Restart\n  !!\n")
+            println(io, "  is_ckp           = $( _b(cfg.is_ckp) )          !! perform checkpoint/restart")
+            println(io, "  ckpdir           = $( _qs(cfg.ckpdir) )      !! output directory")
+            println(io, "  ckp_interval     = $(cfg.ckp_interval)          !! interval for checkpoint check（1/cycle）")
+            println(io, "  ckp_time         = $(cfg.ckp_time)          !! checkpoint time")
+            println(io, "  ckp_seq          = $( _b(cfg.ckp_seq) )              !! sequential output mode\n")
 
-        println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Reciprocity Green's Function Mode\n  !!\n")
-        println(io, "  green_mode       = $( _b(cfg.green_mode) )          !! reciprocity Green's function mode")
-        println(io, "  green_stnm       = $( _qs(cfg.green_stnm) )           !! virtual station name from fn_stlst")
-        println(io, "  green_cmp        = $( _qs(cfg.green_cmp) )              !! virtual source direction 'x', 'y', 'z'")
-        println(io, "  green_trise      = $(cfg.green_trise)              !! rise time")
-        println(io, "  green_bforce     = $( _b(cfg.green_bforce) )          !! also calc. body force Green's function")
-        println(io, "  green_maxdist    = $(cfg.green_maxdist)              !! horizontal limit of source grid")
-        println(io, "  green_fmt        = $( _qs(cfg.green_fmt) )            !! list file format: 'xyz' or 'llz'")
-        println(io, "  fn_glst          = $( _qs(cfg.fn_glst) )   !! Green's function grid point list\n")
+            println(io, "  !! ----------------------------------------------------------------------- !!\n  !! Reciprocity Green's Function Mode\n  !!\n")
+            println(io, "  green_mode       = $( _b(cfg.green_mode) )          !! reciprocity Green's function mode")
+            println(io, "  green_stnm       = $( _qs(cfg.green_stnm) )           !! virtual station name from fn_stlst")
+            println(io, "  green_cmp        = $( _qs(cfg.green_cmp) )              !! virtual source direction 'x', 'y', 'z'")
+            println(io, "  green_trise      = $(cfg.green_trise)              !! rise time")
+            println(io, "  green_bforce     = $( _b(cfg.green_bforce) )          !! also calc. body force Green's function")
+            println(io, "  green_maxdist    = $(cfg.green_maxdist)              !! horizontal limit of source grid")
+            println(io, "  green_fmt        = $( _qs(cfg.green_fmt) )            !! list file format: 'xyz' or 'llz'")
+            println(io, "  fn_glst          = $( _qs(cfg.fn_glst) )   !! Green's function grid point list\n")
+        end
 
         println(io, "  !! ----------------------------------------------------------------------- !!\n  !! MISC\n  !!\n")
         println(io, "  stopwatch_mode   = $( _b(cfg.stopwatch_mode) )          !! measure computation time at routines")
         println(io, "  benchmark_mode   = $( _b(cfg.benchmark_mode) )          !! benchmark mode\n")
         println(io, "  ipad             = $(cfg.ipad)                !! memory padding size for tuning")
-        println(io, "  jpad             = $(cfg.jpad)                !! memory padding size for tuning")
+        is3d && println(io, "  jpad             = $(cfg.jpad)                !! memory padding size for tuning")
         println(io, "  kpad             = $(cfg.kpad)                !! memory padding size for tuning")
     end
 
@@ -718,12 +735,20 @@ end
     OpenSWPCConfig(input_model::CartData; kwargs...)
 
 Generates an input model from a GMG CartData object.
+A CartData of size `(nx, 1, nz)` (e.g. `CartData(xyz_grid(x, 0, z))`) defines a 2D model in the x-z plane,
+which is run with the P-SV code by default; pass `solver="sh"` for the SH code.
+A vertical cross-section through a 3D model (see `to_2D`) is converted to that form first.
 """
 function OpenSWPCConfig(input_model::CartData; kwargs...)
+    if size(input_model)[1] == 1 || size(input_model)[3] == 1
+        input_model = to_2D(input_model)
+    end
     nx, ny, nz = size(input_model)
-    dx = input_model.x.val[2,2,2]-input_model.x.val[1,1,1]
-    dy = input_model.y.val[2,2,2]-input_model.y.val[1,1,1]
-    dz = input_model.z.val[2,2,2]-input_model.z.val[1,1,1]
+    solver = get(kwargs, :solver, ny == 1 ? "psv" : "3d")
+    (ny == 1) == (solver != "3d") || error("solver=\"$solver\" does not match a CartData of size $(size(input_model))")
+    dx = input_model.x.val[2,1,1]-input_model.x.val[1,1,1]
+    dy = ny > 1 ? input_model.y.val[1,2,1]-input_model.y.val[1,1,1] : 0.0
+    dz = input_model.z.val[1,1,2]-input_model.z.val[1,1,1]
     xbeg = minimum(input_model.x.val)   
     ybeg = minimum(input_model.y.val)
     zbeg = -maximum(input_model.z.val)      # coordinates are flipped
@@ -735,6 +760,7 @@ function OpenSWPCConfig(input_model::CartData; kwargs...)
     @assert haskey(input_model.fields, :lambda) "CartData must have field 'lambda'"
 
     return OpenSWPCConfig(;
+        solver=solver,
         nx=nx, ny=ny, nz=nz,
         dx=dx, dy=dy, dz=dz,
         xbeg=xbeg, ybeg=ybeg, zbeg=zbeg,

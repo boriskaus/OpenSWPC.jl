@@ -31,6 +31,7 @@ else
 end
 
 include("utils.jl")
+export to_2D
 
 # Source file writer (sourceCF.dat)
 include("source_cf.jl")

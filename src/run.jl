@@ -71,7 +71,7 @@ Optional keyword arguments
 ===
 - `input::AbstractString`: path to the SWPC input file (default=`"input.dat"`)
 - `swpc_3d::Bool`        : run the 3D code (default=`true`)
-- `swpc_ps::Bool`        : run the 2D PSV code (default=`false`)
+- `swpc_psv::Bool`       : run the 2D PSV code (default=`false`)
 - `swpc_sh::Bool`        : run the 2D SH code (default=`false`)
 
 
@@ -87,12 +87,13 @@ end
 
     run_swpc(cfg::OpenSWPCConfig; kwargs...)
 
-Run `swpc_3d`. Keyword args are passed through to `swpc_cmd`.
-Returns the process object after successful completion.
+Run `swpc_3d`, `swpc_psv` or `swpc_sh`, as selected by `cfg.solver`. Keyword args are passed through to `swpc_cmd`.
 """
 function run_swpc(cfg::OpenSWPCConfig; kwargs...)
-    np = cfg.nproc_x * cfg.nproc_y
+    np = cfg.solver == "3d" ? cfg.nproc_x * cfg.nproc_y : cfg.nproc_x
     write_input!(cfg)
-    run_swpc(np; input=cfg.input_file, kwargs...)
+    run_swpc(np; input=cfg.input_file,
+             swpc_3d=cfg.solver == "3d", swpc_psv=cfg.solver == "psv", swpc_sh=cfg.solver == "sh",
+             kwargs...)
     return nothing
 end

@@ -129,15 +129,37 @@ Movie-file (*.pvd) created for: cf_swp_layers/swpc_3d_vol_ps_nc.pvd
 ```
 Open any of the `*.pvd` files with Paraview and play the movie.
 
-### 3. Differences to OpenSWPC
+### 3. 2D simulations
+A `CartData` of size `(nx, 1, nz)` defines a 2D model in the x-z plane, which is run with the 2D P-SV code (`swpc_psv`); pass `solver="sh"` to use the 2D SH code (`swpc_sh`) instead:
+```julia
+julia> x = range(-5,5,length=200)
+julia> z = range(-5,0,length=100)
+julia> vmod = CartData(xyz_grid(x,0,z))
+julia> vp, vs, rho = fill(3.4,size(vmod)), fill(2.4,size(vmod)), fill(2.5,size(vmod))
+julia> Qp, Qs = fill(200.0,size(vmod)), fill(200.0,size(vmod))
+julia> mu = rho.* vs .^2
+julia> lambda = rho.* (vp .^2 .- 2 .* vs .^2)
+julia> vmod = addfield(vmod,(;rho,Qp,Qs,mu,lambda, vp, vs))
+
+julia> cfg = OpenSWPCConfig(vmod, odir="out_psv", nproc_x=2,
+                        dt = 0.005, vcut=0.1, nt=200,
+                        xz_v_sw=true, ntdec_s=50, idec=1, kdec=1, stftype="triangle",
+                        source=[SourceXYMWDC(0.0, 0.0, 2.0, 0.1, 0.5, 3.0, 0.0, 45.0, 90.0)],
+                        stations=[StationXY(2.0, 0.0, 0.1, "ST01", "dep")])
+julia> run_swpc(cfg)
+julia> dat, t = read_xz_slice("out_psv/swpc.psv.xz.v.nc", timestep=4)
+```
+In 2D, sources and stations use the same formats as in 3D; their y-coordinate is ignored.
+
+### 4. Differences to OpenSWPC
 OpenSWPC.jl ships with a precompiled binary version of the code. We have modified the fortran source code such that we can use 3D velocity models created with GMG in the models. Likewise, you can also
 
-### 4. Getting help
+### 5. Getting help
 All options of the `OpenSWPC` input file are configurable from the julia REPL. See the online documentation of [OpenSWPC](https://openswpc.github.io) tp understand the meaning of it all.
 
-### 5. Citing
+### 6. Citing
 This package ofcourse relies on the great [OpenSWPC](https://github.com/OpenSWPC/OpenSWPC) code by Takuto Maeda. Please cite that if you use this in your work. 
 
 
-### 6. Funding
+### 7. Funding
 Funding for this Julia interface was provided by the SAKURA project and by the DEGREE project funded by the German ministry of Science, Education and Space.

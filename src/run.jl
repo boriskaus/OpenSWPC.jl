@@ -92,6 +92,8 @@ Run `swpc_3d`, `swpc_psv` or `swpc_sh`, as selected by `cfg.solver`. Keyword arg
 function run_swpc(cfg::OpenSWPCConfig; kwargs...)
     np = cfg.solver == "3d" ? cfg.nproc_x * cfg.nproc_y : cfg.nproc_x
     write_input!(cfg)
+    # OpenSWPC creates its output directories with a POSIX shell command, which fails on Windows
+    mkpath(joinpath(cfg.odir, "wav"))
     run_swpc(np; input=cfg.input_file,
              swpc_3d=cfg.solver == "3d", swpc_psv=cfg.solver == "psv", swpc_sh=cfg.solver == "sh",
              kwargs...)

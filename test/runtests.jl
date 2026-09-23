@@ -1,6 +1,7 @@
 using Test
 using GeophysicalModelGenerator
 using OpenSWPC
+using NCDatasets
 
 #using .OpenSWPC
 @testset "sourceCF read/write" begin
@@ -87,4 +88,10 @@ end
 end
 @testset "3D model with topography input" begin
     include(joinpath(@__DIR__, "test_3D_3.jl"))
+end
+@testset "2D P-SV model with CartData input" begin
+    include(joinpath(@__DIR__, "test_2D_psv.jl"))
+end
+@testset "2D SH model with CartData input" begin
+    include(joinpath(@__DIR__, "test_2D_sh.jl"))
 end

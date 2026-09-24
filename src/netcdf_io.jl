@@ -26,6 +26,7 @@ function read_netcdf(ncfile::String; xbeg=0.0, ybeg=0.0, zbeg=0.0)
         fields = merge(fields, field)
     end
     X,Y,Z = xyz_grid(x,y,-OpenSWPC.flip_ud(z));
+    close(ds)
 
     return CartData(X,Y,Z, fields)
 end

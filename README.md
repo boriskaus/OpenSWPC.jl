@@ -152,7 +152,7 @@ julia> dat, t = read_xz_slice("out_psv/swpc.psv.xz.v.nc", timestep=4)
 In 2D, sources and stations use the same formats as in 3D; their y-coordinate is ignored.
 
 ### 4. Differences to OpenSWPC
-OpenSWPC.jl ships with a precompiled binary version of the code. We have modified the fortran source code such that we can use 3D velocity models created with GMG in the models. Likewise, you can also
+OpenSWPC.jl ships with a precompiled binary version of the code on Mac, windows, linux, so this works out of the box. We have modified the fortran source code such that we can use 2D/3D velocity models created with GMG in the models. Likewise, you can also read the output back into julia. 
 
 ### 5. Getting help
 All options of the `OpenSWPC` input file are configurable from the julia REPL. See the online documentation of [OpenSWPC](https://openswpc.github.io) tp understand the meaning of it all.
